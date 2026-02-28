@@ -3,1266 +3,1391 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sonic Fingerprint AI Lab</title>
-  <style>
-    * { box-sizing: border-box; }
+  <title>Sonic Fingerprint Lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Share+Tech+Mono&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
-      color: white;
-      margin: 0;
-      padding: 0;
-      min-height: 100vh;
+  <style>
+    /* ─── DESIGN TOKENS ─────────────────────────────────── */
+    :root {
+      --bg:         #070810;
+      --surface:    #0d0f1e;
+      --panel:      #111425;
+      --border:     #1e2240;
+      --border-glow:#253060;
+
+      --cyan:    #00e5ff;
+      --cyan-dim: rgba(0,229,255,.15);
+      --green:   #39ff14;
+      --green-dim:rgba(57,255,20,.12);
+      --amber:   #ffaa00;
+      --pink:    #ff2d78;
+      --white:   #e8ecff;
+      --muted:   #4a5080;
+
+      --font-display: 'Orbitron', monospace;
+      --font-mono:    'Share Tech Mono', monospace;
+      --font-body:    'DM Sans', sans-serif;
+
+      --radius: 10px;
+      --glow-cyan: 0 0 18px rgba(0,229,255,.45);
+      --glow-green: 0 0 18px rgba(57,255,20,.45);
+      --glow-pink: 0 0 18px rgba(255,45,120,.45);
     }
 
-    #container {
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--white);
+      min-height: 100vh;
+      overflow-x: hidden;
+      background-image:
+        radial-gradient(ellipse 80% 60% at 50% -10%, rgba(0,180,255,.07) 0%, transparent 60%),
+        repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(255,255,255,.018) 39px, rgba(255,255,255,.018) 40px),
+        repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(255,255,255,.018) 39px, rgba(255,255,255,.018) 40px);
+    }
+
+    /* ─── LAYOUT ─────────────────────────────────────────── */
+    #app {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 28px 20px 60px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 20px;
-      max-width: 1200px;
-      margin: 0 auto;
+      gap: 0;
     }
 
-    .header {
-      text-align: center;
-      margin-bottom: 30px;
+    /* ─── HEADER ─────────────────────────────────────────── */
+    .site-header {
       width: 100%;
+      text-align: center;
+      padding: 20px 0 32px;
+      position: relative;
     }
 
-    .header h1 {
-      font-size: clamp(1.8rem, 5vw, 2.8rem);
-      margin: 10px 0;
-      text-shadow: 0 0 20px rgba(0, 212, 255, 0.6);
-      background: linear-gradient(90deg, #00d4ff, #00ff88);
+    .site-header::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 50%;
+      transform: translateX(-50%);
+      width: 200px; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    }
+
+    .logo-eyebrow {
+      font-family: var(--font-mono);
+      font-size: .72rem;
+      color: var(--cyan);
+      letter-spacing: .25em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      opacity: .8;
+    }
+
+    .logo-title {
+      font-family: var(--font-display);
+      font-size: clamp(1.6rem, 5vw, 2.6rem);
+      font-weight: 900;
+      letter-spacing: .04em;
+      line-height: 1.1;
+      background: linear-gradient(135deg, var(--cyan) 0%, #00aaff 40%, var(--green) 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
+      filter: drop-shadow(0 0 24px rgba(0,229,255,.3));
     }
 
-    .header p {
-      color: #aaa;
-      font-size: 1rem;
-      margin: 5px 0;
+    .logo-sub {
+      margin-top: 10px;
+      font-size: .9rem;
+      color: var(--muted);
+      font-weight: 300;
+      letter-spacing: .03em;
     }
 
-    .stats-bar {
-      display: flex;
-      gap: 20px;
-      justify-content: center;
+    /* ─── STATS RIBBON ───────────────────────────────────── */
+    #stats-bar {
+      width: 100%;
+      display: none;
+      gap: 12px;
+      margin: 24px 0 0;
       flex-wrap: wrap;
-      margin: 20px 0;
-      padding: 15px;
-      background: rgba(0, 0, 0, 0.3);
-      border-radius: 10px;
-      border: 1px solid #333;
+      justify-content: center;
     }
 
-    .stat-item {
-      text-align: center;
-      padding: 10px 20px;
-      background: rgba(255, 255, 255, 0.05);
+    .stat-chip {
+      background: var(--panel);
+      border: 1px solid var(--border);
       border-radius: 8px;
-      border: 1px solid #444;
+      padding: 10px 20px;
+      text-align: center;
+      min-width: 100px;
+      transition: border-color .3s;
     }
 
-    .stat-label {
-      font-size: 0.8rem;
-      color: #888;
+    .stat-chip:hover { border-color: var(--border-glow); }
+
+    .stat-chip__label {
+      font-family: var(--font-mono);
+      font-size: .65rem;
+      color: var(--muted);
+      letter-spacing: .15em;
       text-transform: uppercase;
-      letter-spacing: 1px;
     }
 
-    .stat-value {
-      font-size: 1.8rem;
-      font-weight: bold;
-      color: #00d4ff;
-      margin-top: 5px;
+    .stat-chip__value {
+      font-family: var(--font-display);
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: var(--cyan);
+      margin-top: 4px;
+      line-height: 1;
     }
 
-    .canvas-container {
+    /* ─── PANEL ──────────────────────────────────────────── */
+    .panel {
+      width: 100%;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-top: 20px;
+    }
+
+    .panel-title {
+      font-family: var(--font-mono);
+      font-size: .7rem;
+      color: var(--muted);
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-title::before {
+      content: '';
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: var(--glow-cyan);
+      flex-shrink: 0;
+    }
+
+    /* ─── CANVAS / SPECTRUM ──────────────────────────────── */
+    .spectrum-wrap {
       position: relative;
       width: 100%;
-      max-width: 700px;
-      margin: 20px 0;
-      height: 220px;
+      height: 200px;
+      margin-top: 6px;
     }
 
-    canvas {
-      border: 2px solid #00d4ff;
-      background: #000;
-      border-radius: 12px;
-      box-shadow: 0 0 30px rgba(0, 212, 255, 0.3);
+    .spectrum-wrap canvas {
       width: 100%;
       height: 100%;
       display: block;
+      border-radius: var(--radius);
+      border: 1px solid var(--border-glow);
+      background: #000;
+      box-shadow: 0 0 0 1px rgba(0,229,255,.08), inset 0 0 40px rgba(0,0,0,.8);
     }
 
-    .canvas-label {
-      position: absolute;
-      top: 10px;
-      left: 15px;
-      background: rgba(0, 0, 0, 0.8);
-      padding: 5px 12px;
-      border-radius: 5px;
-      font-size: 0.85rem;
-      color: #00d4ff;
-      border: 1px solid #00d4ff;
+    .spectrum-wrap canvas.glowing {
+      box-shadow: var(--glow-cyan), inset 0 0 40px rgba(0,0,0,.8);
+      border-color: var(--cyan);
+      transition: box-shadow .4s, border-color .4s;
     }
 
-    .recording-indicator {
-      position: absolute;
-      top: 10px;
-      right: 15px;
-      background: #ff0044;
-      padding: 5px 12px;
-      border-radius: 20px;
-      font-size: 0.85rem;
-      font-weight: bold;
-      animation: pulse 1.5s infinite;
-      display: none;
-    }
-
-    .recording-indicator.active { display: block; }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
-    }
-
-    .gallery {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      gap: 15px;
-      margin: 20px 0;
-      background: #1a1a1a;
-      padding: 20px;
-      border-radius: 12px;
-      border: 1px solid #333;
-      width: 100%;
-      max-width: 700px;
-      min-height: 120px;
-    }
-
-    .captured-item {
-      position: relative;
-      text-align: center;
-      opacity: 0;
-      animation: fadeIn 0.5s forwards;
-      background: rgba(255, 255, 255, 0.05);
-      padding: 12px;
-      border-radius: 8px;
-      border: 1px solid #444;
-      transition: transform 0.2s, box-shadow 0.2s;
-      cursor: pointer;
-    }
-
-    .captured-item:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 5px 20px rgba(0, 212, 255, 0.3);
-      border-color: #00d4ff;
-    }
-
-    .captured-item canvas {
-      border: 1px solid #555;
-      width: 100%;
-      height: 70px;
-      border-radius: 6px;
-      margin-bottom: 8px;
-    }
-
-    .captured-item .word-label {
-      font-weight: bold;
-      color: #00d4ff;
-      font-size: 0.95rem;
-      margin-bottom: 5px;
-    }
-
-    .captured-item .timestamp {
-      font-size: 0.7rem;
-      color: #666;
-    }
-
-    .delete-btn{
-      position:absolute;
-      top:6px; right:6px;
-      width:22px; height:22px;
-      border-radius:50%;
-      border:1px solid #555;
-      background: rgba(0,0,0,.65);
-      color:#fff;
-      font-weight:900;
-      line-height:20px;
-      cursor:pointer;
-      z-index:5;
-      padding:0;
-    }
-    .delete-btn:hover{ border-color:#ff4444; color:#ff4444; }
-
-    .controls {
-      margin: 20px 0;
-      display: flex;
-      gap: 12px;
-      justify-content: center;
-      flex-wrap: wrap;
-      width: 100%;
-      max-width: 700px;
-    }
-
-    button {
-      padding: 14px 28px;
-      font-size: 0.95rem;
-      cursor: pointer;
-      background: linear-gradient(135deg, #00d4ff, #0099cc);
-      border: none;
-      border-radius: 8px;
-      font-weight: bold;
-      color: #fff;
-      transition: all 0.3s;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      box-shadow: 0 4px 15px rgba(0, 212, 255, 0.3);
-      position: relative;
-      overflow: hidden;
-    }
-
-    button::before {
+    /* scanline overlay */
+    .spectrum-wrap::after {
       content: '';
       position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 0;
-      height: 0;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.3);
-      transform: translate(-50%, -50%);
-      transition: width 0.6s, height 0.6s;
+      inset: 0;
+      border-radius: var(--radius);
+      background: repeating-linear-gradient(
+        180deg,
+        transparent 0px, transparent 3px,
+        rgba(0,0,0,.18) 3px, rgba(0,0,0,.18) 4px
+      );
+      pointer-events: none;
     }
 
-    button:hover::before {
-      width: 300px;
-      height: 300px;
+    .spectrum-badge {
+      position: absolute;
+      top: 10px; left: 12px;
+      font-family: var(--font-mono);
+      font-size: .7rem;
+      color: var(--cyan);
+      background: rgba(0,0,0,.75);
+      border: 1px solid rgba(0,229,255,.3);
+      padding: 3px 10px;
+      border-radius: 4px;
+      letter-spacing: .1em;
+      z-index: 2;
     }
 
-    button:hover:not(:disabled) {
-      transform: translateY(-3px);
-      box-shadow: 0 6px 25px rgba(0, 212, 255, 0.5);
+    .rec-dot {
+      position: absolute;
+      top: 10px; right: 12px;
+      font-family: var(--font-mono);
+      font-size: .7rem;
+      font-weight: 700;
+      color: #fff;
+      background: var(--pink);
+      padding: 3px 10px 3px 8px;
+      border-radius: 20px;
+      letter-spacing: .08em;
+      display: none;
+      animation: blink 1.4s infinite;
+      z-index: 2;
     }
 
-    button:active:not(:disabled) { transform: translateY(-1px); }
+    .rec-dot.active { display: flex; align-items: center; gap: 5px; }
+    .rec-dot::before { content: '●'; font-size: .55rem; }
 
-    button:disabled {
-      background: #333;
-      color: #666;
-      cursor: not-allowed;
-      box-shadow: none;
-      transform: none;
-    }
+    @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:.35; } }
 
-    button.secondary {
-      background: linear-gradient(135deg, #444, #333);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    }
-
-    button.success { background: linear-gradient(135deg, #00ff88, #00cc66); }
-
-    input {
-      padding: 14px 20px;
-      border-radius: 8px;
-      border: 2px solid #333;
-      background: #222;
-      color: white;
-      min-width: 200px;
-      text-align: center;
-      font-weight: bold;
-      font-size: 1rem;
-      transition: border-color 0.3s;
-    }
-
-    input:focus {
-      border-color: #00d4ff;
-      outline: none;
-      box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
-    }
-
+    /* ─── AI FEEDBACK ────────────────────────────────────── */
     .ai-feedback {
-      background: linear-gradient(135deg, rgba(0, 32, 0, 0.95), rgba(0, 64, 32, 0.95));
-      border-left: 4px solid #00ff88;
-      padding: 20px;
-      margin: 20px 0;
-      font-family: 'Courier New', monospace;
-      color: #00ff88;
       width: 100%;
-      max-width: 700px;
-      min-height: 60px;
-      text-align: left;
-      font-size: 0.9rem;
-      line-height: 1.6;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-      border-radius: 0 8px 8px 0;
+      background: var(--surface);
+      border-left: 3px solid var(--green);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding: 16px 18px;
+      margin-top: 16px;
+      font-family: var(--font-mono);
+      font-size: .82rem;
+      color: var(--green);
+      line-height: 1.7;
       position: relative;
       overflow: hidden;
+      min-height: 56px;
     }
 
     .ai-feedback::before {
-      content: '🤖 AI ANALYSIS';
+      content: 'SYSTEM ›';
       position: absolute;
-      top: 8px;
-      right: 15px;
-      font-size: 0.7rem;
-      opacity: 0.5;
-      font-family: 'Segoe UI', sans-serif;
+      top: 10px; right: 14px;
+      font-size: .6rem;
+      color: var(--muted);
+      letter-spacing: .1em;
     }
 
     .ai-feedback.loading::after {
       content: '';
       position: absolute;
-      bottom: 0;
-      left: 0;
-      height: 3px;
-      background: #00ff88;
-      animation: loading 1.5s infinite;
+      bottom: 0; left: 0;
+      height: 2px;
+      background: var(--green);
+      animation: scanning 1.8s ease-in-out infinite;
     }
 
-    @keyframes loading {
-      0% { width: 0%; }
-      50% { width: 100%; }
-      100% { width: 0%; }
+    @keyframes scanning {
+      0%   { width: 0; left: 0; }
+      50%  { width: 100%; left: 0; }
+      100% { width: 0; left: 100%; }
     }
 
+    /* ─── CONTROLS ───────────────────────────────────────── */
+    .controls {
+      width: 100%;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+      align-items: stretch;
+    }
+
+    /* ─── BUTTONS ────────────────────────────────────────── */
+    .btn {
+      font-family: var(--font-display);
+      font-size: .72rem;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      padding: 13px 22px;
+      transition: all .2s;
+      position: relative;
+      overflow: hidden;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0);
+      transition: background .15s;
+    }
+
+    .btn:hover:not(:disabled)::after { background: rgba(255,255,255,.06); }
+    .btn:active:not(:disabled) { transform: scale(.97); }
+
+    .btn:disabled {
+      opacity: .35;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #0077aa, #004466);
+      color: var(--cyan);
+      border: 1px solid rgba(0,229,255,.3);
+      box-shadow: 0 2px 14px rgba(0,120,180,.25);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      border-color: var(--cyan);
+      box-shadow: var(--glow-cyan);
+    }
+
+    .btn-capture {
+      background: linear-gradient(135deg, #004d1a, #003311);
+      color: var(--green);
+      border: 1px solid rgba(57,255,20,.3);
+      box-shadow: 0 2px 14px rgba(30,140,30,.2);
+    }
+
+    .btn-capture:hover:not(:disabled) {
+      border-color: var(--green);
+      box-shadow: var(--glow-green);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover:not(:disabled) {
+      color: var(--white);
+      border-color: var(--border-glow);
+    }
+
+    .btn-challenge {
+      background: linear-gradient(135deg, #6600aa, #440077);
+      color: #dd88ff;
+      border: 1px solid rgba(200,80,255,.35);
+      box-shadow: 0 2px 14px rgba(140,30,220,.25);
+    }
+
+    .btn-challenge:hover:not(:disabled) {
+      box-shadow: var(--glow-pink);
+      border-color: var(--pink);
+      color: #fff;
+    }
+
+    .btn-talk {
+      background: linear-gradient(135deg, #004d1a, #003311);
+      color: var(--green);
+      border: 1px solid rgba(57,255,20,.35);
+      padding: 14px 24px;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      min-width: 160px;
+    }
+
+    .btn-talk:hover:not(:disabled) {
+      box-shadow: var(--glow-green);
+      border-color: var(--green);
+    }
+
+    .btn-talk.recording {
+      background: linear-gradient(135deg, #4d0022, #33001a);
+      color: var(--pink);
+      border-color: rgba(255,45,120,.5);
+      box-shadow: var(--glow-pink);
+      animation: talkPulse 1s infinite;
+    }
+
+    @keyframes talkPulse {
+      0%,100% { box-shadow: var(--glow-pink); }
+      50% { box-shadow: 0 0 30px rgba(255,45,120,.7); }
+    }
+
+    .btn-next {
+      background: linear-gradient(135deg, #004d1a, #003311);
+      color: var(--green);
+      border: 1px solid rgba(57,255,20,.35);
+      width: 100%;
+      margin-top: 16px;
+      padding: 16px;
+      font-size: .8rem;
+      box-shadow: 0 2px 14px rgba(30,140,30,.2);
+    }
+
+    .btn-next:hover:not(:disabled) { box-shadow: var(--glow-green); border-color: var(--green); }
+
+    .btn-back {
+      width: 100%;
+      max-width: 760px;
+      margin-bottom: 16px;
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      font-family: var(--font-mono);
+      font-size: .75rem;
+      letter-spacing: .1em;
+    }
+
+    .btn-back:hover { color: var(--white); border-color: var(--border-glow); }
+
+    /* ─── INPUT ──────────────────────────────────────────── */
+    .word-input {
+      flex: 1;
+      min-width: 160px;
+      padding: 13px 18px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--white);
+      font-family: var(--font-display);
+      font-size: .8rem;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      transition: border-color .2s, box-shadow .2s;
+    }
+
+    .word-input:focus {
+      outline: none;
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 2px rgba(0,229,255,.12);
+    }
+
+    .word-input::placeholder {
+      color: var(--muted);
+      font-weight: 400;
+      font-size: .72rem;
+    }
+
+    /* ─── PROGRESS ───────────────────────────────────────── */
+    .progress-row {
+      width: 100%;
+      margin-top: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .progress-label {
+      font-family: var(--font-mono);
+      font-size: .68rem;
+      color: var(--muted);
+      letter-spacing: .15em;
+      text-transform: uppercase;
+    }
+
+    .progress-count {
+      font-family: var(--font-display);
+      font-size: .95rem;
+      font-weight: 700;
+      color: var(--white);
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 6px;
+      background: rgba(255,255,255,.06);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--cyan), var(--green));
+      border-radius: 3px;
+      transition: width .5s cubic-bezier(.4,0,.2,1);
+      box-shadow: 0 0 8px rgba(0,229,255,.5);
+    }
+
+    /* ─── GALLERY ────────────────────────────────────────── */
+    .gallery {
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 12px;
+      margin-top: 6px;
+    }
+
+    .gallery-empty {
+      grid-column: 1/-1;
+      text-align: center;
+      padding: 30px 0;
+      font-family: var(--font-mono);
+      font-size: .8rem;
+      color: var(--muted);
+      letter-spacing: .1em;
+    }
+
+    .capture-card {
+      position: relative;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      cursor: pointer;
+      transition: border-color .2s, transform .2s, box-shadow .2s;
+      opacity: 0;
+      animation: cardIn .4s ease forwards;
+    }
+
+    @keyframes cardIn {
+      from { opacity:0; transform:translateY(10px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+
+    .capture-card:hover {
+      border-color: var(--border-glow);
+      transform: translateY(-3px);
+      box-shadow: 0 6px 24px rgba(0,0,0,.5);
+    }
+
+    .capture-card canvas {
+      width: 100%;
+      height: 60px;
+      display: block;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      margin-bottom: 8px;
+    }
+
+    .capture-card__word {
+      font-family: var(--font-display);
+      font-size: .78rem;
+      font-weight: 700;
+      color: var(--cyan);
+      letter-spacing: .08em;
+      text-align: center;
+      margin-bottom: 3px;
+    }
+
+    .capture-card__time {
+      font-family: var(--font-mono);
+      font-size: .6rem;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .card-del {
+      position: absolute;
+      top: 6px; right: 6px;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: rgba(0,0,0,.7);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: .7rem;
+      line-height: 18px;
+      text-align: center;
+      cursor: pointer;
+      z-index: 2;
+      transition: border-color .15s, color .15s;
+      padding: 0;
+    }
+
+    .card-del:hover { border-color: var(--pink); color: var(--pink); }
+
+    /* ─── CHALLENGE ──────────────────────────────────────── */
     #challenge-section {
+      width: 100%;
       display: none;
       flex-direction: column;
       align-items: center;
-      width: 100%;
-      animation: slideIn 0.5s;
+      animation: slideUp .4s ease;
     }
 
-    @keyframes slideIn {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
+    @keyframes slideUp {
+      from { opacity:0; transform:translateY(20px); }
+      to   { opacity:1; transform:translateY(0); }
     }
 
-    #challenge-ui {
-      background: linear-gradient(135deg, #1a1a2e, #2a2a3e);
-      padding: 30px;
-      border-radius: 15px;
-      border: 2px solid #444;
-      max-width: 700px;
-      width: 100%;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-    }
-
-    .challenge-header {
+    .challenge-head {
       text-align: center;
-      margin-bottom: 25px;
+      padding: 10px 0 20px;
+      width: 100%;
     }
 
-    .challenge-header h2 {
-      color: #ff00d4;
-      margin: 0 0 10px 0;
-      font-size: 2rem;
-      text-shadow: 0 0 15px rgba(255, 0, 212, 0.5);
+    .challenge-title {
+      font-family: var(--font-display);
+      font-size: 1.6rem;
+      font-weight: 900;
+      color: var(--pink);
+      letter-spacing: .06em;
+      text-shadow: var(--glow-pink);
+      margin-bottom: 6px;
     }
 
-    .ai-status {
-      background: linear-gradient(135deg, #0a0a0a, #1a1a1a);
-      padding: 20px;
-      border-radius: 10px;
-      margin: 20px 0;
-      border: 1px solid #333;
+    .challenge-sub {
+      font-family: var(--font-mono);
+      font-size: .75rem;
+      color: var(--muted);
+      letter-spacing: .1em;
+    }
+
+    /* ─── METER ──────────────────────────────────────────── */
+    .meter-panel {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      margin-top: 16px;
     }
 
     .meter-header {
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      font-size: 0.9rem;
-      color: #888;
+      align-items: baseline;
       margin-bottom: 10px;
     }
 
-    .meter-percentage {
-      font-size: 1.5rem;
-      color: white;
-      font-weight: bold;
+    .meter-label {
+      font-family: var(--font-mono);
+      font-size: .68rem;
+      color: var(--muted);
+      letter-spacing: .15em;
+      text-transform: uppercase;
     }
 
-    .meter-bg {
-      background: #222;
+    .meter-pct {
+      font-family: var(--font-display);
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--white);
+      line-height: 1;
+    }
+
+    .meter-pct span { font-size: .8rem; color: var(--muted); font-weight: 400; }
+
+    .meter-track {
       width: 100%;
-      height: 12px;
-      border-radius: 6px;
+      height: 10px;
+      background: rgba(255,255,255,.05);
+      border-radius: 5px;
       overflow: hidden;
-      box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5);
     }
 
     #ai-meter-bar {
       height: 100%;
-      background: linear-gradient(90deg, #00d4ff, #00ff88, #00ff88);
       width: 0%;
-      transition: width 0.3s ease-out;
-      box-shadow: 0 0 10px currentColor;
+      background: linear-gradient(90deg, var(--cyan), var(--green));
+      transition: width .25s ease-out;
+      border-radius: 5px;
     }
 
     .meter-status {
-      display: block;
+      font-family: var(--font-mono);
+      font-size: .7rem;
+      color: var(--muted);
       margin-top: 8px;
-      color: #555;
-      font-size: 0.85rem;
       text-align: center;
-      font-weight: 600;
+      letter-spacing: .08em;
+      transition: color .3s;
     }
 
+    /* ─── DIALOG PANEL ───────────────────────────────────── */
     .dialog-panel {
-      margin-top: 20px;
-      padding: 20px;
-      border: 1px solid #333;
-      border-radius: 12px;
-      background: linear-gradient(135deg, #0a0a0a, #1a1a1a);
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      margin-top: 16px;
     }
 
-    .dialog-header {
+    .dialog-toolbar {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 15px;
-      margin-bottom: 15px;
       flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
     }
 
-    .dialog-stats {
-      font-size: 0.9rem;
-      color: #888;
-      flex: 1;
+    .dialog-meta {
+      display: flex;
+      gap: 16px;
     }
 
-    .dialog-stats b { color: #fff; }
-
-    #talkBtn {
-      min-width: 140px;
-      padding: 12px 20px;
-      background: linear-gradient(135deg, #00ff88, #00cc66);
-      font-size: 0.95rem;
-      touch-action: none;
-      -webkit-user-select: none;
-      user-select: none;
+    .dialog-chip {
+      font-family: var(--font-mono);
+      font-size: .68rem;
+      color: var(--muted);
+      letter-spacing: .1em;
     }
 
-    #talkBtn:active:not(:disabled) {
-      background: linear-gradient(135deg, #00cc66, #009944);
+    .dialog-chip b {
+      font-family: var(--font-display);
+      font-size: .88rem;
+      color: var(--white);
+      font-weight: 700;
+      display: block;
+      margin-top: 1px;
     }
 
-    .dialog-transcript {
-      margin-top: 15px;
-      font-size: 0.9rem;
+    .transcript-area {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .transcript-line {
+      background: rgba(255,255,255,.025);
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+    }
+
+    .transcript-line__label {
+      font-family: var(--font-mono);
+      font-size: .6rem;
+      color: var(--muted);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+
+    .transcript-line__text {
+      font-size: .9rem;
+      color: var(--white);
+      line-height: 1.55;
+    }
+
+    #replayTtsBtn {
+      margin-top: 8px;
+      padding: 6px 14px;
+      font-family: var(--font-mono);
+      font-size: .7rem;
+      letter-spacing: .08em;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: color .15s, border-color .15s;
+    }
+
+    #replayTtsBtn:hover { color: var(--white); border-color: var(--border-glow); }
+
+    /* ─── OPTIONS ────────────────────────────────────────── */
+    #options-container {
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .option-btn {
+      font-family: var(--font-display);
+      font-size: .88rem;
+      font-weight: 700;
+      letter-spacing: .06em;
+      padding: 16px 12px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--white);
+      cursor: pointer;
+      transition: all .2s;
+    }
+
+    .option-btn:hover:not(:disabled) {
+      background: var(--surface);
+      border-color: var(--border-glow);
+      transform: translateY(-2px);
+    }
+
+    .option-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+    /* ─── HINT / FEEDBACK ────────────────────────────────── */
+    .hint-box {
+      width: 100%;
+      background: rgba(255,170,0,.07);
+      border: 1px dashed rgba(255,170,0,.35);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      margin-top: 14px;
+      font-size: .87rem;
+      color: var(--amber);
       line-height: 1.6;
     }
 
-    .dialog-line {
-      margin-bottom: 12px;
-      padding: 10px;
-      border-radius: 6px;
-      background: rgba(255, 255, 255, 0.03);
-    }
+    .hint-box strong { display: block; margin-bottom: 6px; font-family: var(--font-mono); font-size: .7rem; letter-spacing: .1em; }
 
-    .dialog-line-label {
-      color: #666;
-      font-size: 0.8rem;
-      margin-bottom: 4px;
-    }
-
-    .dialog-line-content { color: #ddd; }
-
-    #options-container {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 12px;
-      margin: 20px 0;
-    }
-
-    #options-container button {
-      background: linear-gradient(135deg, #333, #222);
-      padding: 16px;
-      font-size: 1.1rem;
-    }
-
-    #options-container button:hover:not(:disabled) {
-      background: linear-gradient(135deg, #444, #333);
-    }
-
-    .feedback {
-      margin-top: 20px;
-      font-size: 1.4rem;
-      font-weight: bold;
-      min-height: 2em;
-      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+    .feedback-box {
+      width: 100%;
       text-align: center;
-      padding: 15px;
+      padding: 16px;
+      border-radius: var(--radius);
+      margin-top: 14px;
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: .06em;
+      min-height: 56px;
+      transition: all .3s;
+    }
+
+    .feedback-box.correct {
+      background: rgba(57,255,20,.08);
+      border: 1px solid rgba(57,255,20,.4);
+      color: var(--green);
+      box-shadow: 0 0 24px rgba(57,255,20,.12);
+    }
+
+    .feedback-box.incorrect {
+      background: rgba(255,45,120,.08);
+      border: 1px solid rgba(255,45,120,.4);
+      color: var(--pink);
+      box-shadow: 0 0 24px rgba(255,45,120,.12);
+    }
+
+    /* ─── MODAL ──────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.75);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+
+    .modal-overlay.visible {
+      display: flex;
+      animation: fadeOverlay .2s ease;
+    }
+
+    @keyframes fadeOverlay { from { opacity:0; } to { opacity:1; } }
+
+    .modal-card {
+      background: var(--panel);
+      border: 1px solid var(--border-glow);
+      border-radius: 14px;
+      padding: 24px;
+      width: min(480px, 92vw);
+      box-shadow: 0 20px 60px rgba(0,0,0,.7), 0 0 0 1px rgba(0,229,255,.08);
+      animation: modalIn .25s ease;
+    }
+
+    @keyframes modalIn {
+      from { opacity:0; transform:scale(.95) translateY(10px); }
+      to   { opacity:1; transform:scale(1) translateY(0); }
+    }
+
+    .modal-title {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--cyan);
+      letter-spacing: .06em;
+      margin-bottom: 6px;
+    }
+
+    .modal-sub {
+      font-family: var(--font-mono);
+      font-size: .72rem;
+      color: var(--muted);
+      letter-spacing: .08em;
+      margin-bottom: 16px;
+    }
+
+    .modal-input {
+      width: 100%;
+      padding: 13px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border-glow);
       border-radius: 8px;
-      transition: all 0.3s;
+      color: var(--white);
+      font-family: var(--font-display);
+      font-size: .9rem;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
     }
 
-    .feedback.correct {
-      color: #00ff88;
-      background: rgba(0, 255, 136, 0.1);
-      border: 1px solid #00ff88;
+    .modal-input:focus {
+      outline: none;
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 2px rgba(0,229,255,.1);
     }
 
-    .feedback.incorrect {
-      color: #ff4444;
-      background: rgba(255, 68, 68, 0.1);
-      border: 1px solid #ff4444;
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
     }
 
-    .hint-box {
-      background: linear-gradient(135deg, #1a1a00, #2a2a00);
-      border: 1px dashed #666;
-      padding: 15px;
-      margin: 15px 0;
-      font-size: 0.9rem;
-      color: #ffaa00;
-      border-radius: 8px;
-      line-height: 1.5;
-    }
+    .modal-actions .btn { flex: 1; padding: 12px; font-size: .7rem; }
 
+    /* ─── UTILITY ────────────────────────────────────────── */
     .hidden { display: none !important; }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .progress-section {
+    .divider {
       width: 100%;
-      max-width: 700px;
-      margin: 20px 0;
+      height: 1px;
+      background: var(--border);
+      margin: 6px 0;
     }
 
-    .progress-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 10px;
+    /* ─── RESPONSIVE ─────────────────────────────────────── */
+    @media (max-width: 600px) {
+      #app { padding: 16px 14px 50px; }
+
+      .spectrum-wrap { height: 150px; }
+
+      .controls { flex-direction: column; }
+
+      .word-input, .btn { width: 100%; }
+
+      .btn-talk { min-width: unset; }
+
+      .dialog-toolbar { flex-direction: column; align-items: stretch; }
+
+      #options-container { grid-template-columns: 1fr; }
+
+      .word-input { font-size: 16px; } /* prevent iOS zoom */
     }
 
-    .progress-label {
-      color: #888;
-      font-size: 0.9rem;
-      text-transform: uppercase;
-      letter-spacing: 1px;
+    @media (max-width: 380px) {
+      .spectrum-wrap { height: 120px; }
+      .logo-title { font-size: 1.4rem; }
     }
-
-    .progress-count {
-      color: white;
-      font-weight: bold;
-      font-size: 1.1rem;
-    }
-
-    .progress-bar-container {
-      width: 100%;
-      height: 8px;
-      background: #222;
-      border-radius: 4px;
-      overflow: hidden;
-      box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5);
-    }
-
-    .progress-bar {
-      height: 100%;
-      background: linear-gradient(90deg, #00d4ff, #00ff88);
-      width: 0%;
-      transition: width 0.5s ease-out;
-      box-shadow: 0 0 10px currentColor;
-    }
-
-/* ============================================ */
-/* MOBILE & RESPONSIVE - COMPLETE */
-/* ============================================ */
-  @media (max-width: 768px) {
-    /* Smaller canvas for mobile */
-    .canvas-container {
-      height: 150px !important;
-      max-width: 100%;
-      margin: 15px 0;
-    }
-    
-    #liveCanvas, #mysteryCanvas {
-      height: 150px;
-    }
-
-    #container {
-      padding: 12px;
-    }
-
-    .header {
-      margin-bottom: 15px;
-    }
-
-    .header h1 {
-      font-size: clamp(1.5rem, 4vw, 2rem);
-    }
-
-    .header p {
-      font-size: 0.9rem;
-    }
-
-    /* AI feedback more readable */
-    .ai-feedback {
-      padding: 15px;
-      font-size: 0.85rem;
-      margin: 15px 0;
-    }
-
-    /* Button sizing */
-    .controls {
-      flex-direction: column;
-      gap: 10px;
-      max-width: 100%;
-    }
-
-    input, button {
-      width: 100%;
-      padding: 14px 16px;
-    }
-
-    button {
-      font-size: 0.95rem;
-      min-height: 50px;
-    }
-
-    /* Talk button - bigger touch target */
-    #talkBtn {
-      padding: 18px 24px !important;
-      font-size: 1.05rem !important;
-      min-height: 56px;
-    }
-
-    /* Prevent iOS zoom on input focus */
-    input {
-      font-size: 16px !important;
-    }
-
-    /* Gallery */
-    .gallery {
-      max-width: 100%;
-      padding: 15px;
-      gap: 12px;
-      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-    }
-
-    .captured-item {
-      padding: 8px;
-    }
-
-    .captured-item canvas {
-      height: 60px;
-    }
-
-    /* Stats bar */
-    .stats-bar {
-      gap: 10px;
-      padding: 10px;
-      flex-direction: row;
-      flex-wrap: wrap;
-    }
-
-    .stat-item {
-      padding: 8px 15px;
-      min-width: 80px;
-    }
-
-    .stat-value {
-      font-size: 1.5rem;
-    }
-
-    /* Progress section */
-    .progress-section {
-      max-width: 100%;
-    }
-
-    /* Challenge mode */
-    #challenge-ui {
-      padding: 20px;
-    }
-
-    .challenge-header h2 {
-      font-size: 1.6rem;
-    }
-
-    /* Dialog panel */
-    .dialog-panel {
-      padding: 15px;
-    }
-
-    .dialog-header {
-      flex-direction: column;
-      gap: 10px;
-      align-items: stretch;
-    }
-
-    .dialog-line-content {
-      font-size: 0.95rem;
-      line-height: 1.5;
-    }
-
-    /* Options */
-    #options-container {
-      grid-template-columns: 1fr;
-      gap: 10px;
-    }
-
-    #options-container button {
-      padding: 18px;
-      font-size: 1.05rem;
-    }
-  }
-
-  /* Very small screens */
-  @media (max-width: 420px) {
-    .canvas-container {
-      height: 120px !important;
-    }
-
-    #liveCanvas, #mysteryCanvas {
-      height: 120px;
-    }
-
-    .canvas-label {
-      top: 6px;
-      left: 8px;
-      padding: 4px 8px;
-      font-size: 0.75rem;
-    }
-
-    .ai-feedback {
-      padding: 12px;
-      font-size: 0.8rem;
-    }
-
-    .stat-value {
-      font-size: 1.3rem;
-    }
-
-    .delete-btn {
-      width: 24px;
-      height: 24px;
-      line-height: 22px;
-    }
-
-    .challenge-header h2 {
-      font-size: 1.4rem;
-    }
-
-    .feedback {
-      font-size: 1.1rem;
-      padding: 12px;
-    }
-  }
-
-    .tooltip { position: relative; display: inline-block; }
-    .tooltip .tooltiptext {
-      visibility: hidden;
-      width: 200px;
-      background-color: #333;
-      color: #fff;
-      text-align: center;
-      border-radius: 6px;
-      padding: 8px;
-      position: absolute;
-      z-index: 1;
-      bottom: 125%;
-      left: 50%;
-      margin-left: -100px;
-      opacity: 0;
-      transition: opacity 0.3s;
-      font-size: 0.85rem;
-    }
-    .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
   </style>
 </head>
 
 <body>
-  <div id="container">
-    <div class="header">
-      <h1>🧬 Sonic Fingerprint Lab</h1>
-      <p>Explore how your voice creates unique audio patterns</p>
+<div id="app">
+
+  <!-- HEADER -->
+  <header class="site-header">
+    <div class="logo-eyebrow">STEM Audio Lab · v2.0</div>
+    <h1 class="logo-title">🧬 Sonic Fingerprint</h1>
+    <p class="logo-sub">Explore how your voice creates unique spectral patterns</p>
+  </header>
+
+  <!-- STATS RIBBON -->
+  <div id="stats-bar">
+    <div class="stat-chip">
+      <div class="stat-chip__label">Words</div>
+      <div class="stat-chip__value" id="stat-words">0</div>
     </div>
-
-    <div class="stats-bar" id="stats-bar" style="display: none;">
-      <div class="stat-item">
-        <div class="stat-label">Words Captured</div>
-        <div class="stat-value" id="stat-words">0</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-label">Score</div>
-        <div class="stat-value" id="stat-score">0</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-label">Difficulty</div>
-        <div class="stat-value" id="stat-difficulty">1</div>
-      </div>
+    <div class="stat-chip">
+      <div class="stat-chip__label">Score</div>
+      <div class="stat-chip__value" id="stat-score">0</div>
     </div>
-
-    <div id="lab-section">
-      <p style="color:#bbb; font-size: 1.05rem; margin-bottom: 20px;">
-        Record <b style="color:#00d4ff;">4 different words</b> to build your voice dataset
-      </p>
-
-      <div class="canvas-container">
-        <canvas id="liveCanvas"></canvas>
-        <div class="canvas-label">LIVE SPECTRUM</div>
-        <div class="recording-indicator" id="recording-indicator">● REC</div>
-      </div>
-
-      <div class="ai-feedback" id="word-hint">
-        Initialize microphone to begin spectral analysis...
-      </div>
-
-      <div class="controls">
-        <button id="startBtn" class="tooltip">
-          <span>🎤 Start Microphone</span>
-          <span class="tooltiptext">Grant microphone access to begin</span>
-        </button>
-      
-        <button id="autoBtn" class="secondary" disabled>🤖 Auto Capture: OFF</button>
-      
-        <input type="text" id="wordInput" placeholder="Type word (e.g., HELLO)" maxlength="20">
-        <button id="captureBtn" disabled class="success">📸 Capture & Analyze</button>
-      </div>
-
-      <div class="progress-section">
-        <div class="progress-header">
-          <span class="progress-label">Dataset Progress</span>
-          <span class="progress-count"><span id="count">0</span>/4</span>
-        </div>
-        <div class="progress-bar-container">
-          <div class="progress-bar" id="progress-bar"></div>
-        </div>
-      </div>
-
-      <div class="gallery" id="gallery"></div>
-
-      <div class="controls">
-        <button id="goToChallengeBtn" disabled style="background: linear-gradient(135deg, #ff00d4, #cc0099); font-size: 1rem;">
-          🎯 Enter Challenge Mode →
-        </button>
-        <button id="resetLabBtn" class="secondary" style="font-size: 0.9rem;">🔄 Reset Lab</button>
-      </div>
-    </div>
-
-    <div id="challenge-section">
-      <button id="backToLabBtn" class="secondary" style="margin-bottom: 25px; width: 100%; max-width: 700px;">
-        ← Back to Lab
-      </button>
-
-      <div id="challenge-ui">
-        <div class="challenge-header">
-          <h2>🎭 Mystery Pattern</h2>
-          <p style="color: #aaa; margin: 0;">Can you identify which word created this pattern?</p>
-        </div>
-
-        <div class="canvas-container">
-          <canvas id="mysteryCanvas"></canvas>
-          
-        </div>
-
-        <div class="ai-status">
-          <div class="meter-header">
-            <span>LIVE VOICE MATCH</span>
-            <span class="meter-percentage"><span id="ai-percent">0</span>%</span>
-          </div>
-          <div class="meter-bg">
-            <div id="ai-meter-bar"></div>
-          </div>
-          <small class="meter-status" id="ai-match-text">Speak to compare your voice...</small>
-        </div>
-
-        <div class="dialog-panel">
-          <div class="dialog-header">
-            <div class="dialog-stats">
-              <b>🤖 AI Oral Quiz</b><br>
-              <span style="font-size: 0.85rem;">
-                Difficulty: <span id="diff">1</span> • Points: <span id="pts">0</span>
-              </span>
-            </div>
-            <button id="talkBtn">🎙️ Hold to Talk</button>
-          </div>
-
-          <div class="dialog-transcript">
-            <div class="dialog-line">
-              <div class="dialog-line-label">You said:</div>
-              <div class="dialog-line-content" id="studentTranscript">—</div>
-            </div>
-          <div class="dialog-line">
-            <div class="dialog-line-label">AI Response:</div>
-            <div class="dialog-line-content" id="aiReply">—</div>
-            <button id="replayTtsBtn" class="hidden" style="margin-top:8px; padding:8px 16px; font-size:0.85rem; background:linear-gradient(135deg, #444, #333); border-radius:6px;">
-              🔊 Play Audio
-            </button>
-          </div>
-            <div class="dialog-line">
-              <div class="dialog-line-label">Next Question:</div>
-              <div class="dialog-line-content" id="nextQ">Answer questions by voice to earn points 🎯</div>
-            </div>
-          </div>
-        </div>
-
-        <div id="challenge-hint" class="hint-box hidden"></div>
-        <div id="options-container"></div>
-        <div id="feedback" class="feedback"></div>
-
-        <button id="nextBtn" class="hidden success" style="width: 100%; font-size: 1.1rem;">
-          Next Round →
-        </button>
-      </div>
+    <div class="stat-chip">
+      <div class="stat-chip__label">Level</div>
+      <div class="stat-chip__value" id="stat-difficulty">1</div>
     </div>
   </div>
 
-<div id="labelModal" class="hidden" style="
-  position:fixed; inset:0; background:rgba(0,0,0,.65);
-  display:none; align-items:center; justify-content:center; z-index:9999;">
-  <div style="background:#121212; border:1px solid #333; border-radius:12px; padding:18px; width:min(520px,92vw);">
-    <h3 style="margin:0 0 10px 0; color:#00d4ff;">Captured! What word was that?</h3>
-    <p style="margin:0 0 12px 0; color:#aaa; font-size:.9rem;">If this was accidental, hit Retry or Cancel.</p>
+  <!-- ═══════════════════════════════════════════════ -->
+  <!-- LAB SECTION                                     -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <div id="lab-section" style="width:100%">
 
-    <input id="modalWordInput" placeholder="Type word (e.g., HELLO)" maxlength="20"
-      style="width:100%; padding:12px 14px; border-radius:8px; border:2px solid #333; background:#222; color:white; font-weight:bold; font-size:16px;" />
+    <p style="font-family:var(--font-mono); font-size:.8rem; color:var(--muted); text-align:center; margin-top:22px; letter-spacing:.08em;">
+      Capture <strong style="color:var(--cyan)">4 unique words</strong> to build your voice dataset
+    </p>
 
-    <div style="display:flex; gap:10px; margin-top:14px;">
-      <button id="modalSaveBtn" class="success" style="flex:1;">💾 Save</button>
-      <button id="modalRetryBtn" class="secondary" style="flex:1;">🔁 Retry</button>
-      <button id="modalCancelBtn" class="secondary" style="flex:1;">✖ Cancel</button>
+    <!-- Spectrum -->
+    <div class="panel" style="margin-top:16px;">
+      <div class="panel-title">Live Spectrum</div>
+      <div class="spectrum-wrap">
+        <canvas id="liveCanvas"></canvas>
+        <div class="spectrum-badge" id="spectrum-badge">IDLE</div>
+        <div class="rec-dot" id="recording-indicator">REC</div>
+      </div>
+    </div>
+
+    <!-- Status -->
+    <div class="ai-feedback" id="word-hint">Initialize microphone to begin spectral analysis…</div>
+
+    <!-- Controls -->
+    <div class="controls" style="margin-top:14px;">
+      <button class="btn btn-primary" id="startBtn">🎤 Start Mic</button>
+      <button class="btn btn-ghost" id="autoBtn" disabled>🤖 Auto: OFF</button>
+    </div>
+
+    <div class="controls" style="margin-top:10px;">
+      <input class="word-input" type="text" id="wordInput" placeholder="Type word (e.g. HELLO)" maxlength="20">
+      <button class="btn btn-capture" id="captureBtn" disabled>📸 Capture</button>
+    </div>
+
+    <!-- Progress -->
+    <div class="progress-row">
+      <div class="progress-meta">
+        <span class="progress-label">Dataset Progress</span>
+        <span class="progress-count"><span id="count">0</span> / 4</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="progress-bar"></div>
+      </div>
+    </div>
+
+    <!-- Gallery -->
+    <div class="panel" style="margin-top:16px;">
+      <div class="panel-title">Captured Patterns</div>
+      <div class="gallery" id="gallery">
+        <div class="gallery-empty" id="gallery-empty">No patterns captured yet</div>
+      </div>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="controls" style="margin-top:14px; justify-content:stretch;">
+      <button class="btn btn-challenge" id="goToChallengeBtn" disabled style="flex:1; padding:15px;">
+        🎯 Enter Challenge Mode →
+      </button>
+      <button class="btn btn-ghost" id="resetLabBtn">🔄 Reset</button>
+    </div>
+
+  </div><!-- /lab-section -->
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <!-- CHALLENGE SECTION                               -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <div id="challenge-section">
+
+    <button class="btn btn-ghost btn-back" id="backToLabBtn">← Back to Lab</button>
+
+    <div class="challenge-head">
+      <div class="challenge-title">🎭 Mystery Pattern</div>
+      <div class="challenge-sub">Identify which word created this spectral signature</div>
+    </div>
+
+    <!-- Mystery canvas -->
+    <div class="panel" style="margin-top:0;">
+      <div class="panel-title">Mystery Spectrum</div>
+      <div class="spectrum-wrap">
+        <canvas id="mysteryCanvas"></canvas>
+      </div>
+    </div>
+
+    <!-- Voice match meter -->
+    <div class="meter-panel">
+      <div class="meter-header">
+        <span class="meter-label">Live Voice Match</span>
+        <div class="meter-pct"><span id="ai-percent">0</span><span>%</span></div>
+      </div>
+      <div class="meter-track">
+        <div id="ai-meter-bar"></div>
+      </div>
+      <div class="meter-status" id="ai-match-text">Speak to compare your voice…</div>
+    </div>
+
+    <!-- AI Dialog -->
+    <div class="dialog-panel">
+      <div class="dialog-toolbar">
+        <div class="dialog-meta">
+          <div class="dialog-chip">
+            LEVEL
+            <b id="diff">1</b>
+          </div>
+          <div class="dialog-chip">
+            POINTS
+            <b id="pts">0</b>
+          </div>
+        </div>
+        <button class="btn btn-talk" id="talkBtn">🎙️ Hold to Talk</button>
+      </div>
+
+      <div class="transcript-area">
+        <div class="transcript-line">
+          <div class="transcript-line__label">You said</div>
+          <div class="transcript-line__text" id="studentTranscript">—</div>
+        </div>
+        <div class="transcript-line">
+          <div class="transcript-line__label">AI Response</div>
+          <div class="transcript-line__text" id="aiReply">—</div>
+          <button id="replayTtsBtn" class="hidden">🔊 Play Audio</button>
+        </div>
+        <div class="transcript-line">
+          <div class="transcript-line__label">Next Question</div>
+          <div class="transcript-line__text" id="nextQ">Answer questions by voice to earn points 🎯</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hint -->
+    <div id="challenge-hint" class="hint-box hidden">
+      <strong>💡 AI Lab Report</strong>
+      <span id="hint-text"></span>
+    </div>
+
+    <!-- Word Options -->
+    <div id="options-container"></div>
+
+    <!-- Feedback -->
+    <div id="feedback" class="feedback-box"></div>
+
+    <!-- Next button -->
+    <button class="btn btn-next hidden" id="nextBtn">Next Round →</button>
+
+  </div><!-- /challenge-section -->
+
+</div><!-- /app -->
+
+<!-- ─── LABEL MODAL ────────────────────────────────── -->
+<div id="labelModal" class="modal-overlay">
+  <div class="modal-card">
+    <div class="modal-title">Pattern Captured!</div>
+    <div class="modal-sub">What word did you say? Label it to save.</div>
+    <input id="modalWordInput" class="modal-input" placeholder="Type word (e.g. HELLO)" maxlength="20">
+    <div class="modal-actions">
+      <button class="btn btn-capture" id="modalSaveBtn">💾 Save</button>
+      <button class="btn btn-ghost" id="modalRetryBtn">🔁 Retry</button>
+      <button class="btn btn-ghost" id="modalCancelBtn">✖ Cancel</button>
     </div>
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  JAVASCRIPT (all original logic, bugs fixed)           -->
+<!-- ═══════════════════════════════════════════════════════ -->
 <script>
-  // all your JS
-</script>
-  <script>
-    // ============================================
-    // CONFIGURATION
-    // ============================================
-    const API_URL = "https://soniclab-zoa0.onrender.com/analyze-sound";
-    const DIALOG_URL = "https://soniclab-zoa0.onrender.com/dialog";
+  // ============================================
+  // CONFIGURATION
+  // ============================================
+  const API_URL    = "https://soniclab-zoa0.onrender.com/analyze-sound";
+  const DIALOG_URL = "https://soniclab-zoa0.onrender.com/dialog";
 
-    // ============================================
-    // STATE
-    // ============================================
+  // ============================================
+  // STATE
+  // ============================================
   const state = {
     audioCtx: null,
     analyser: null,
     dataArray: null,
-
     library: [],
     currentTarget: null,
-
     isMicActive: false,
-
     score: 0,
     totalRounds: 0,
-
     dialogHistory: [],
     difficulty: 1,
     points: 0,
-
-    // Recorder
     recordingStream: null,
     mediaRecorder: null,
     audioChunks: [],
-
-    // Audio unlock (iOS)
     ttsUnlocked: false,
     unlockCtx: null,
-    
-    // TTS replay (NEW)
     lastTtsUrl: null,
     lastTtsData: null
-
-    
   };
-    state.autoCapture = {
+
+  state.autoCapture = {
     enabled: false,
     inSpeech: false,
     speechFrames: 0,
     silenceFrames: 0,
-    baseline: 0,  // EMA baseline
+    baseline: 0,
     peak: 0,
     cooldownUntil: 0
   };
 
   state.pendingCapture = null;
 
+  // ============================================
+  // DOM
+  // ============================================
+  const el = {
+    liveCanvas:          document.getElementById('liveCanvas'),
+    mysteryCanvas:       document.getElementById('mysteryCanvas'),
+    gallery:             document.getElementById('gallery'),
+    galleryEmpty:        document.getElementById('gallery-empty'),
+    wordHint:            document.getElementById('word-hint'),
+    recordingIndicator:  document.getElementById('recording-indicator'),
+    spectrumBadge:       document.getElementById('spectrum-badge'),
+    startBtn:            document.getElementById('startBtn'),
+    captureBtn:          document.getElementById('captureBtn'),
+    wordInput:           document.getElementById('wordInput'),
+    goToChallengeBtn:    document.getElementById('goToChallengeBtn'),
+    resetLabBtn:         document.getElementById('resetLabBtn'),
+    backToLabBtn:        document.getElementById('backToLabBtn'),
+    labSection:          document.getElementById('lab-section'),
+    challengeSection:    document.getElementById('challenge-section'),
+    optionsContainer:    document.getElementById('options-container'),
+    feedback:            document.getElementById('feedback'),
+    nextBtn:             document.getElementById('nextBtn'),
+    challengeHint:       document.getElementById('challenge-hint'),
+    hintText:            document.getElementById('hint-text'),
+    talkBtn:             document.getElementById('talkBtn'),
+    studentTranscript:   document.getElementById('studentTranscript'),
+    aiReply:             document.getElementById('aiReply'),
+    nextQ:               document.getElementById('nextQ'),
+    diff:                document.getElementById('diff'),
+    pts:                 document.getElementById('pts'),
+    count:               document.getElementById('count'),
+    progressBar:         document.getElementById('progress-bar'),
+    statsBar:            document.getElementById('stats-bar'),
+    statWords:           document.getElementById('stat-words'),
+    statScore:           document.getElementById('stat-score'),
+    statDifficulty:      document.getElementById('stat-difficulty'),
+    aiPercent:           document.getElementById('ai-percent'),
+    aiMeterBar:          document.getElementById('ai-meter-bar'),
+    aiMatchText:         document.getElementById('ai-match-text'),
+    autoBtn:             document.getElementById('autoBtn'),
+    labelModal:          document.getElementById('labelModal'),
+    modalWordInput:      document.getElementById('modalWordInput'),
+    modalSaveBtn:        document.getElementById('modalSaveBtn'),
+    modalRetryBtn:       document.getElementById('modalRetryBtn'),
+    modalCancelBtn:      document.getElementById('modalCancelBtn'),
+  };
 
-    // ============================================
-    // DOM
-    // ============================================
-    const elements = {
-      liveCanvas: document.getElementById('liveCanvas'),
-      mysteryCanvas: document.getElementById('mysteryCanvas'),
-      gallery: document.getElementById('gallery'),
-      wordHint: document.getElementById('word-hint'),
-      recordingIndicator: document.getElementById('recording-indicator'),
-      startBtn: document.getElementById('startBtn'),
-      captureBtn: document.getElementById('captureBtn'),
-      wordInput: document.getElementById('wordInput'),
-      goToChallengeBtn: document.getElementById('goToChallengeBtn'),
-      resetLabBtn: document.getElementById('resetLabBtn'),
-      backToLabBtn: document.getElementById('backToLabBtn'),
-      labSection: document.getElementById('lab-section'),
-      challengeSection: document.getElementById('challenge-section'),
-      optionsContainer: document.getElementById('options-container'),
-      feedback: document.getElementById('feedback'),
-      nextBtn: document.getElementById('nextBtn'),
-      challengeHint: document.getElementById('challenge-hint'),
-      talkBtn: document.getElementById('talkBtn'),
-      studentTranscript: document.getElementById('studentTranscript'),
-      aiReply: document.getElementById('aiReply'),
-      nextQ: document.getElementById('nextQ'),
-      diff: document.getElementById('diff'),
-      pts: document.getElementById('pts'),
-      count: document.getElementById('count'),
-      progressBar: document.getElementById('progress-bar'),
-      statsBar: document.getElementById('stats-bar'),
-      statWords: document.getElementById('stat-words'),
-      statScore: document.getElementById('stat-score'),
-      statDifficulty: document.getElementById('stat-difficulty'),
-      aiPercent: document.getElementById('ai-percent'),
-      aiMeterBar: document.getElementById('ai-meter-bar'),
-      aiMatchText: document.getElementById('ai-match-text'),
-      autoBtn: document.getElementById('autoBtn'),
-      labelModal: document.getElementById('labelModal'),
-      modalWordInput: document.getElementById('modalWordInput'),
-      modalSaveBtn: document.getElementById('modalSaveBtn'),
-      modalRetryBtn: document.getElementById('modalRetryBtn'),
-      modalCancelBtn: document.getElementById('modalCancelBtn'),
-    };
+  const liveCtx    = el.liveCanvas.getContext('2d', { willReadFrequently: true });
+  const mysteryCtx = el.mysteryCanvas.getContext('2d');
 
-    const liveCtx = elements.liveCanvas.getContext('2d', { willReadFrequently: true });
-    liveCtx.imageSmoothingEnabled = true;
-    const mysteryCtx = elements.mysteryCanvas.getContext('2d');
-    mysteryCtx.imageSmoothingEnabled = true;
+  function fitCanvas(canvas, ctx) {
+    const dpr  = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width  = Math.max(1, Math.floor(rect.width  * dpr));
+    canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
 
-    function fitCanvas(canvas, ctx) {
-      const dpr = window.devicePixelRatio || 1;
-      const rect = canvas.getBoundingClientRect();
+  fitCanvas(el.liveCanvas, liveCtx);
+  fitCanvas(el.mysteryCanvas, mysteryCtx);
 
-      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
-      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+  window.addEventListener("resize", () => {
+    fitCanvas(el.liveCanvas, liveCtx);
+    fitCanvas(el.mysteryCanvas, mysteryCtx);
+    if (el.challengeSection.style.display === "flex") redrawMystery();
+  });
 
-      // Draw using CSS pixel coords
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // ============================================
+  // AUDIO INIT
+  // ============================================
+  async function initAudio() {
+    if (state.audioCtx) return;
+    try {
+      showStatus('Requesting microphone access…', 'info');
+      state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      state.analyser = state.audioCtx.createAnalyser();
+      state.analyser.fftSize = 1024;
+      state.analyser.smoothingTimeConstant = 0.6;
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const source = state.audioCtx.createMediaStreamSource(stream);
+      source.connect(state.analyser);
+
+      state.dataArray = new Uint8Array(state.analyser.frequencyBinCount);
+      state.isMicActive = true;
+
+      showStatus('✓ Microphone active — ready to capture audio patterns!', 'success');
+      el.startBtn.disabled = true;
+      el.startBtn.textContent = '✓ Mic Active';
+      el.captureBtn.disabled = false;
+      el.autoBtn.disabled = false;
+      el.spectrumBadge.textContent = 'LIVE';
+      el.liveCanvas.classList.add('glowing');
+
+      draw();
+    } catch (err) {
+      console.error('Microphone error:', err);
+      showStatus('❌ Microphone access denied. Please allow access and try again.', 'error');
+    }
+  }
+
+  // ============================================
+  // DRAW / WATERFALL
+  // ============================================
+  function computeEnergy(dataArray) {
+    const start = 4, end = Math.min(120, dataArray.length);
+    let sum = 0;
+    for (let i = start; i < end; i++) sum += dataArray[i];
+    return sum / (end - start);
+  }
+
+  function draw() {
+    if (!state.isMicActive) return;
+    requestAnimationFrame(draw);
+    if (!state.analyser || !state.dataArray) return;
+
+    state.analyser.getByteFrequencyData(state.dataArray);
+
+    const canvas = el.liveCanvas;
+    const ctx    = liveCtx;
+    const dpr    = window.devicePixelRatio || 1;
+    const bufW   = canvas.width, bufH = canvas.height;
+    const cssW   = bufW / dpr, cssH = bufH / dpr;
+
+    const scrollCss = cssH <= 170 ? 1 : 2;
+    const scrollPx  = Math.max(1, Math.round(scrollCss * dpr));
+
+    if (bufH > scrollPx) {
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(canvas,
+        0, 0, bufW, bufH - scrollPx,
+        0, scrollPx, bufW, bufH - scrollPx);
+      ctx.restore();
     }
 
-    fitCanvas(elements.liveCanvas, liveCtx);
-    fitCanvas(elements.mysteryCanvas, mysteryCtx);
+    const maxBins   = state.dataArray.length;
+    const targetCols = cssW < 520 ? Math.floor(cssW / 2) : Math.floor(cssW);
+    const binsToShow = Math.min(maxBins, Math.max(120, targetCols));
+    const barWidth   = cssW / binsToShow;
+    const noiseFloor = 18, gamma = 1.6;
 
-    window.addEventListener("resize", () => {
-      fitCanvas(elements.liveCanvas, liveCtx);
-      fitCanvas(elements.mysteryCanvas, mysteryCtx);
+    for (let i = 0; i < binsToShow; i++) {
+      const val = state.dataArray[i];
+      let x = (val - noiseFloor) / (255 - noiseFloor);
+      x = Math.max(0, Math.min(1, x));
+      x = Math.pow(x, gamma);
 
-      if (elements.challengeSection.style.display === "flex") {
-        redrawMystery();
+      let r = 0, g = 0, b = 0;
+      if (x < 0.5) {
+        const t = x / 0.5;
+        r = 0; g = Math.floor(255 * t); b = Math.floor(180 + 75 * t);
+      } else {
+        const t = (x - 0.5) / 0.5;
+        r = Math.floor(255 * t); g = 255; b = Math.floor(255 * (1 - t));
       }
-    });
-
-    // ============================================
-    // AUDIO INIT (SPECTRUM)
-    // ============================================
-    async function initAudio() {
-      if (state.audioCtx) return;
-
-      try {
-        showStatus('Requesting microphone access...', 'info');
-
-        state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        state.analyser = state.audioCtx.createAnalyser();
-        state.analyser.fftSize = 1024;
-        state.analyser.smoothingTimeConstant = 0.6;
-
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const source = state.audioCtx.createMediaStreamSource(stream);
-        source.connect(state.analyser);
-
-        state.dataArray = new Uint8Array(state.analyser.frequencyBinCount);
-        state.isMicActive = true;
-
-        showStatus('✓ Microphone active. Ready to capture audio patterns!', 'success');
-        elements.startBtn.disabled = true;
-        elements.startBtn.innerHTML = '<span>✓ Mic Active</span>';
-        elements.captureBtn.disabled = false;
-        elements.autoBtn.disabled = false;
-
-        draw();
-      } catch (error) {
-        console.error('Microphone error:', error);
-        showStatus('❌ Microphone access denied. Please allow microphone access and try again.', 'error');
-        alert("Microphone Error: " + error.message);
-      }
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      ctx.fillRect(i * barWidth, 0, Math.max(1, Math.ceil(barWidth)), scrollCss);
     }
 
-    // ============================================
-    // VISUALIZATION (DPR SAFE)
-    // ============================================
-    function computeEnergy(dataArray) {
-  // Focus on speech-heavy band; avoids rumble/hiss
-      const start = 4;
-      const end = Math.min(120, dataArray.length);
-      let sum = 0;
-      for (let i = start; i < end; i++) sum += dataArray[i];
-      return sum / (end - start);
-    }
-
-    function openLabelModal() {
-      elements.labelModal.classList.remove("hidden");
-      elements.labelModal.style.display = "flex";
-      elements.modalWordInput.value = "";
-      elements.modalWordInput.focus();
-    }
-
-    function closeLabelModal() {
-      elements.labelModal.classList.add("hidden");
-      elements.labelModal.style.display = "none";
-    }
-
-    function createPendingCapture() {
-      const dpr = window.devicePixelRatio || 1;
-      const cssW = elements.liveCanvas.width / dpr;
-      const cssH = elements.liveCanvas.height / dpr;
-
-      const snapCanvas = document.createElement('canvas');
-      snapCanvas.width = cssW;
-      snapCanvas.height = cssH;
-      const snapCtx = snapCanvas.getContext('2d');
-
-      // scale buffer -> css snapshot
-      snapCtx.drawImage(
-        elements.liveCanvas,
-        0, 0, elements.liveCanvas.width, elements.liveCanvas.height,
-        0, 0, cssW, cssH
-      );
-
-      const freqSnapshot = new Uint8Array(state.dataArray);
-
-      state.pendingCapture = {
-        img: snapCanvas,
-        freq: freqSnapshot,
-        timestamp: new Date().toLocaleTimeString()
-      };
-
-      openLabelModal();
-    }
-    function draw() {
-      if (!state.isMicActive) return;
-      requestAnimationFrame(draw);
-
-      if (!state.analyser || !state.dataArray) return;
-      state.analyser.getByteFrequencyData(state.dataArray);
-
-      const canvas = elements.liveCanvas;
-      const ctx = liveCtx;
-
-      const dpr = window.devicePixelRatio || 1;
-
-      // Backing buffer (real pixel) dimensions
-      const bufW = canvas.width;
-      const bufH = canvas.height;
-
-      // CSS pixel dimensions (what you think of as "screen size")
-      const cssW = bufW / dpr;
-      const cssH = bufH / dpr;
-
-      // Thin scanline on mobile
-      const scrollCss = (cssH <= 170) ? 1 : 2;
-      const scrollPx = Math.max(1, Math.round(scrollCss * dpr)); // convert to buffer pixels
-
-      // --- Waterfall scroll (IMPORTANT: source rect uses BUFFER PIXELS) ---
-      if (bufH > scrollPx) {
-        // Copy the whole canvas down by scrollPx
-        ctx.save();
-
-        // Temporarily reset transform so drawImage uses buffer coords cleanly
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-
-        ctx.drawImage(
-          canvas,
-          0, 0, bufW, bufH - scrollPx,      // ✅ source in buffer pixels
-          0, scrollPx, bufW, bufH - scrollPx // ✅ dest in buffer pixels
-        );
-
-        ctx.restore();
-      }
-
-      // --- Draw the new top scanline in CSS space (your fitCanvas transform expects CSS coords) ---
-      // Decide how many bins to draw (avoid chunky columns on small screens)
-      const maxBins = state.dataArray.length;
-
-
-      // Mobile: fewer columns per pixel (avoid chunkiness)
-      // Desktop: more columns (use the whole width)
-      const targetCols =
-        cssW < 520 ? Math.floor(cssW / 2) : Math.floor(cssW); // breakpoint you can tweak
-
-      const binsToShow = Math.min(
-        maxBins,
-        Math.max(120, targetCols)
-      );
-      
-      const barWidth = cssW / binsToShow;
-
-      const noiseFloor = 18;
-      const gamma = 1.6;
-
-      for (let i = 0; i < binsToShow; i++) {
-        const val = state.dataArray[i];
-
-        let x = (val - noiseFloor) / (255 - noiseFloor);
-        x = Math.max(0, Math.min(1, x));
-        x = Math.pow(x, gamma);
-
-        let r = 0, g = 0, b = 0;
-        if (x < 0.5) {
-          const t = x / 0.5;
-          r = 0;
-          g = Math.floor(255 * t);
-          b = Math.floor(180 + 75 * t);
-        } else {
-          const t = (x - 0.5) / 0.5;
-          r = Math.floor(255 * t);
-          g = 255;
-          b = Math.floor(255 * (1 - t));
-        }
-
-        ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-
-        // Draw at the top; height is scrollCss in CSS pixels
-        const xPos = i * barWidth;
-        const w = Math.max(1, Math.ceil(barWidth));
-        ctx.fillRect(xPos, 0, w, scrollCss);
-      }
-    // ============================================
-    // AUTO CAPTURE (VAD-lite)
-    // ============================================
+    // AUTO-CAPTURE VAD
     if (state.autoCapture.enabled && state.isMicActive && !state.pendingCapture && isLabMode()) {
       const now = Date.now();
       if (now >= (state.autoCapture.cooldownUntil || 0)) {
-        const energy = computeEnergy(state.dataArray);
+        const energy  = computeEnergy(state.dataArray);
+        const alpha   = 0.05;
 
-        // Update baseline only when not in speech
-        const alpha = 0.05;
         if (!state.autoCapture.inSpeech) {
           state.autoCapture.baseline = state.autoCapture.baseline
             ? (1 - alpha) * state.autoCapture.baseline + alpha * energy
             : energy;
         }
 
-        // Threshold tweak knobs (you can tune these later)
-        const threshold = state.autoCapture.baseline + 12;
-        const startNeeded = 6;        // frames above threshold to start
-        const endNeeded = 10;         // frames below threshold to end
-        const minSpeechFrames = 18;   // minimum duration (~300ms at 60fps)
+        const threshold    = state.autoCapture.baseline + 12;
+        const startNeeded  = 6;
+        const endNeeded    = 10;
+        const minSpeech    = 18;
 
         if (!state.autoCapture.inSpeech) {
           if (energy > threshold) {
@@ -1276,27 +1401,20 @@
             state.autoCapture.speechFrames = 0;
           }
         } else {
-          // In speech
           state.autoCapture.peak = Math.max(state.autoCapture.peak, energy);
-
           if (energy < threshold) {
             state.autoCapture.silenceFrames++;
             if (state.autoCapture.silenceFrames >= endNeeded) {
-              // Speech ended — accept capture if strong enough
               const strongEnough = state.autoCapture.peak > state.autoCapture.baseline + 18;
-              const longEnough = state.autoCapture.speechFrames >= minSpeechFrames;
-
+              const longEnough   = state.autoCapture.speechFrames >= minSpeech;
               if (strongEnough && longEnough) {
                 createPendingCapture();
-                // cooldown prevents double-captures
                 state.autoCapture.cooldownUntil = Date.now() + 900;
               }
-
-              // Reset
-              state.autoCapture.inSpeech = false;
-              state.autoCapture.speechFrames = 0;
+              state.autoCapture.inSpeech      = false;
+              state.autoCapture.speechFrames  = 0;
               state.autoCapture.silenceFrames = 0;
-              state.autoCapture.peak = 0;
+              state.autoCapture.peak          = 0;
             }
           } else {
             state.autoCapture.silenceFrames = 0;
@@ -1305,944 +1423,685 @@
         }
       }
     }
-      if (state.currentTarget && elements.challengeSection.style.display === "flex") {
-        compareLiveToTarget(state.dataArray, state.currentTarget.freq);
-      }
+
+    if (state.currentTarget && el.challengeSection.style.display === "flex") {
+      compareLiveToTarget(state.dataArray, state.currentTarget.freq);
+    }
+  }
+
+  // ============================================
+  // PITCH
+  // ============================================
+  function detectPitchAutocorrelation(buffer, sampleRate) {
+    const SIZE = buffer.length;
+    let rms = 0;
+    for (let i = 0; i < SIZE; i++) rms += buffer[i] * buffer[i];
+    rms = Math.sqrt(rms / SIZE);
+    if (rms < 0.01) return { pitchHz: 0, clarity: 0 };
+
+    const minLag = Math.floor(sampleRate / 1000);
+    const maxLag = Math.floor(sampleRate / 80);
+    let bestLag = -1, bestCorr = -1;
+
+    for (let lag = minLag; lag <= Math.min(maxLag, SIZE - 1); lag++) {
+      let corr = 0;
+      for (let i = 0; i < SIZE - lag; i++) corr += buffer[i] * buffer[i + lag];
+      if (corr > bestCorr) { bestCorr = corr; bestLag = lag; }
     }
 
+    if (bestLag === -1 || bestCorr <= 0) return { pitchHz: 0, clarity: 0 };
 
-    // ============================================
-    // WORD CAPTURE
-    // ============================================
-    async function captureWord() {
-      const word = elements.wordInput.value.toUpperCase().trim();
+    let zeroLag = 0;
+    for (let i = 0; i < SIZE; i++) zeroLag += buffer[i] * buffer[i];
 
-      if (!word) {
-        alert("Please type the word you are saying!");
-        return;
-      }
+    const clarity = zeroLag > 0 ? bestCorr / zeroLag : 0;
+    const pitchHz = sampleRate / bestLag;
 
-      if (state.library.some(item => item.word === word)) {
-        alert("You've already captured this word! Please use a different word.");
-        return;
-      }
+    return {
+      pitchHz: Number.isFinite(pitchHz) ? Math.round(pitchHz * 10) / 10 : 0,
+      clarity: Math.max(0, Math.min(1, Math.round(clarity * 100) / 100))
+    };
+  }
 
-      // Snapshot at CSS size (not DPR-scaled buffer size)
-      const dpr = window.devicePixelRatio || 1;
-      const cssW = elements.liveCanvas.width / dpr;
-      const cssH = elements.liveCanvas.height / dpr;
+  function getPitchEstimate() {
+    if (!state.analyser || !state.audioCtx) return { pitchHz: 0, clarity: 0 };
+    const timeData = new Float32Array(state.analyser.fftSize);
+    state.analyser.getFloatTimeDomainData(timeData);
+    return detectPitchAutocorrelation(timeData, state.audioCtx.sampleRate);
+  }
 
-      const snapCanvas = document.createElement('canvas');
-      snapCanvas.width = cssW;
-      snapCanvas.height = cssH;
-      const snapCtx = snapCanvas.getContext('2d');
+  // ============================================
+  // PENDING CAPTURE (AUTO MODE)
+  // ============================================
+  function createPendingCapture() {
+    const dpr  = window.devicePixelRatio || 1;
+    const cssW = el.liveCanvas.width / dpr;
+    const cssH = el.liveCanvas.height / dpr;
 
-      // Scale down from buffer to CSS size
-      snapCtx.drawImage(
-        elements.liveCanvas,
-        0, 0, elements.liveCanvas.width, elements.liveCanvas.height,
-        0, 0, cssW, cssH
-      );
+    const snap = document.createElement('canvas');
+    snap.width = cssW; snap.height = cssH;
+    snap.getContext('2d').drawImage(
+      el.liveCanvas, 0, 0, el.liveCanvas.width, el.liveCanvas.height, 0, 0, cssW, cssH
+    );
 
-      console.log('Captured canvas:', {cssW, cssH, dpr});
+    const pitch = getPitchEstimate();
+    state.pendingCapture = {
+      img: snap,
+      freq: new Uint8Array(state.dataArray),
+      pitchHz: pitch.pitchHz,
+      pitchClarity: pitch.clarity,
+      timestamp: new Date().toLocaleTimeString()
+    };
 
-      const freqSnapshot = new Uint8Array(state.dataArray);
+    openLabelModal();
+  }
 
-      showStatus(`Analyzing spectral data for "${word}"...`, 'loading');
-      elements.captureBtn.disabled = true;
-      elements.recordingIndicator.classList.add('active');
+  function openLabelModal() {
+    el.labelModal.classList.add('visible');
+    el.modalWordInput.value = '';
+    setTimeout(() => el.modalWordInput.focus(), 100);
+  }
 
-      let aiAnalysis = "Analysis unavailable (Offline Mode)";
+  function closeLabelModal() {
+    el.labelModal.classList.remove('visible');
+  }
 
-      try {
-        const response = await fetch(API_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            word,
-            frequencies: Array.from(freqSnapshot).slice(0, 40),
-            sampleRate: state.audioCtx.sampleRate,
-            fftSize: state.analyser.fftSize
-          })
-        });
+  // ============================================
+  // WORD CAPTURE (MANUAL)
+  // ============================================
+  async function captureWord() {
+    const word = el.wordInput.value.toUpperCase().trim();
+    if (!word) { alert("Please type the word you are saying!"); return; }
+    if (state.library.some(item => item.word === word)) {
+      alert("That word is already captured — use a different one."); return;
+    }
 
-        if (response.ok) {
-          const data = await response.json();
-          aiAnalysis = data.analysis;
-          showStatus(`✓ Analysis complete for "${word}"`, 'success');
-          setTimeout(() => showStatus(aiAnalysis, 'analysis'), 500);
-        } else {
-          throw new Error("Server error");
-        }
-      } catch (error) {
-        console.error('Analysis error:', error);
-        showStatus('⚠️ Connection failed. Using offline mode.', 'error');
-      }
+    const dpr  = window.devicePixelRatio || 1;
+    const cssW = el.liveCanvas.width / dpr;
+    const cssH = el.liveCanvas.height / dpr;
 
-      state.library.push({
-        word,
-        img: snapCanvas,
-        freq: freqSnapshot,
-        analysis: aiAnalysis,
-        timestamp: new Date().toLocaleTimeString()
+    const snap = document.createElement('canvas');
+    snap.width = cssW; snap.height = cssH;
+    snap.getContext('2d').drawImage(
+      el.liveCanvas, 0, 0, el.liveCanvas.width, el.liveCanvas.height, 0, 0, cssW, cssH
+    );
+
+    const freqSnapshot = new Uint8Array(state.dataArray);
+    const pitch = getPitchEstimate();
+
+    showStatus(`Analyzing spectral data for "${word}"…`, 'loading');
+    el.captureBtn.disabled = true;
+    el.recordingIndicator.classList.add('active');
+
+    let aiAnalysis = "Analysis unavailable (Offline Mode)";
+
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          word,
+          frequencies: Array.from(freqSnapshot).slice(0, 40),
+          sampleRate: state.audioCtx.sampleRate,
+          fftSize: state.analyser.fftSize,
+          estimatedPitchHz: pitch.pitchHz,
+          pitchClarity: pitch.clarity
+        })
       });
-
-      addToGallery(word, snapCanvas, state.library.length - 1);
-      updateProgress();
-
-      elements.wordInput.value = "";
-      elements.captureBtn.disabled = false;
-      elements.recordingIndicator.classList.remove('active');
-
-      if (state.library.length === 1) elements.statsBar.style.display = 'flex';
-      saveToLocalStorage();
+      if (res.ok) {
+        const data = await res.json();
+        aiAnalysis = data.analysis;
+        showStatus(`✓ Analysis complete for "${word}"`, 'success');
+        setTimeout(() => showStatus(aiAnalysis, 'analysis'), 500);
+      } else throw new Error("Server error");
+    } catch (err) {
+      console.error('Analysis error:', err);
+      showStatus('⚠ Connection failed — using offline mode.', 'error');
     }
 
-    // ============================================
-    // GALLERY
-    // ============================================
-    function addToGallery(word, snapCanvas, index) {
-      const container = document.createElement('div');
-      container.className = 'captured-item';
-      container.setAttribute('data-index', index);
+    state.library.push({ word, img: snap, freq: freqSnapshot,
+      pitchHz: pitch.pitchHz, pitchClarity: pitch.clarity,
+      analysis: aiAnalysis, timestamp: new Date().toLocaleTimeString() });
 
-      const del = document.createElement('button');
-      del.className = 'delete-btn';
-      del.type = 'button';
-      del.textContent = '×';
-      del.title = 'Delete';
-      del.addEventListener('click', (e) => {
-        e.stopPropagation();
-        deleteCapture(Number(container.getAttribute('data-index')));
-      });
-      container.appendChild(del);
+    addToGallery(word, snap, state.library.length - 1);
+    updateProgress();
 
-      const miniCanvas = document.createElement('canvas');
-      miniCanvas.width = 140;
-      miniCanvas.height = 70;
-      const miniCtx = miniCanvas.getContext('2d');
-      miniCtx.imageSmoothingEnabled = true;
-      miniCtx.clearRect(0, 0, miniCanvas.width, miniCanvas.height);
-      miniCtx.drawImage(snapCanvas, 0, 0, miniCanvas.width, miniCanvas.height);
+    el.wordInput.value = '';
+    el.captureBtn.disabled = false;
+    el.recordingIndicator.classList.remove('active');
+    if (state.library.length === 1) el.statsBar.style.display = 'flex';
+    saveToLocalStorage();
+  }
 
-      const wordLabel = document.createElement('div');
-      wordLabel.className = 'word-label';
-      wordLabel.textContent = word;
+  // ============================================
+  // GALLERY
+  // ============================================
+  function addToGallery(word, snapCanvas, index) {
+    if (el.galleryEmpty) el.galleryEmpty.style.display = 'none';
 
-      const timestamp = document.createElement('div');
-      timestamp.className = 'timestamp';
-      timestamp.textContent = state.library[index].timestamp;
+    const card = document.createElement('div');
+    card.className = 'capture-card';
+    card.setAttribute('data-index', index);
 
-      container.appendChild(miniCanvas);
-      container.appendChild(wordLabel);
-      container.appendChild(timestamp);
+    const del = document.createElement('button');
+    del.className = 'card-del';
+    del.textContent = '×';
+    del.addEventListener('click', e => {
+      e.stopPropagation();
+      deleteCapture(Number(card.getAttribute('data-index')));
+    });
 
-      container.addEventListener('click', () => {
-        showWordDetails(Number(container.getAttribute('data-index')));
-      });
+    const mini = document.createElement('canvas');
+    mini.width = 140; mini.height = 60;
+    const miniCtx = mini.getContext('2d');
+    miniCtx.imageSmoothingEnabled = true;
+    miniCtx.drawImage(snapCanvas, 0, 0, 140, 60);
 
-      elements.gallery.appendChild(container);
+    const wl = document.createElement('div');
+    wl.className = 'capture-card__word';
+    wl.textContent = word;
+
+    const ts = document.createElement('div');
+    ts.className = 'capture-card__time';
+    ts.textContent = state.library[index].timestamp;
+
+    card.appendChild(del);
+    card.appendChild(mini);
+    card.appendChild(wl);
+    card.appendChild(ts);
+    card.addEventListener('click', () => showWordDetails(Number(card.getAttribute('data-index'))));
+
+    el.gallery.appendChild(card);
+  }
+
+  function showWordDetails(index) {
+    const item = state.library[index];
+    alert(`Word: ${item.word}\nCaptured: ${item.timestamp}\n\nAI Analysis:\n${item.analysis}`);
+  }
+
+  function deleteCapture(index) {
+    if (!confirm(`Delete "${state.library[index]?.word}" from dataset?`)) return;
+    state.library.splice(index, 1);
+
+    const cardEl = el.gallery.querySelector(`[data-index="${index}"]`);
+    if (cardEl) cardEl.remove();
+
+    [...el.gallery.querySelectorAll('.capture-card')].forEach((c, i) => c.setAttribute('data-index', i));
+
+    if (state.library.length === 0 && el.galleryEmpty) el.galleryEmpty.style.display = 'block';
+    if (state.currentTarget && !state.library.includes(state.currentTarget)) switchToLab();
+
+    updateProgress();
+    updateStats();
+    saveToLocalStorage();
+  }
+
+  // ============================================
+  // LIVE MATCHING
+  // ============================================
+  function compareLiveToTarget(live, target) {
+    if (!live || !target || !target.length) { updateMeter(0); return; }
+    const n = Math.min(live.length, target.length);
+    let liveVol = 0;
+    for (let i = 0; i < n; i++) liveVol += live[i];
+    if (liveVol / n < 5) { updateMeter(0); return; }
+
+    let dot = 0, magA = 0, magB = 0;
+    for (let i = 0; i < n; i++) {
+      dot += live[i] * target[i];
+      magA += live[i] * live[i];
+      magB += target[i] * target[i];
     }
+    const mag = Math.sqrt(magA) * Math.sqrt(magB);
+    if (!mag) { updateMeter(0); return; }
 
-    function showWordDetails(index) {
-      const item = state.library[index];
-      alert(`Word: ${item.word}\nCaptured: ${item.timestamp}\n\nAI Analysis:\n${item.analysis}`);
+    const sim = dot / mag;
+    let pct = 0;
+    if (sim > 0.7) pct = Math.min(100, ((sim - 0.7) / 0.3) * 100);
+    updateMeter(Math.floor(pct));
+  }
+
+  function updateMeter(pct) {
+    el.aiPercent.textContent = pct;
+    el.aiMeterBar.style.width = pct + '%';
+
+    if (pct > 80) {
+      el.aiMatchText.textContent = '✓ MATCH CONFIRMED';
+      el.aiMatchText.style.color = 'var(--green)';
+    } else if (pct > 40) {
+      el.aiMatchText.textContent = '🔍 DETECTING PATTERN…';
+      el.aiMatchText.style.color = 'var(--cyan)';
+    } else {
+      el.aiMatchText.textContent = '✕ NO MATCH';
+      el.aiMatchText.style.color = 'var(--muted)';
     }
+  }
 
-    function deleteCapture(index) {
-      if (!confirm(`Delete "${state.library[index]?.word}" from dataset?`)) return;
-
-      state.library.splice(index, 1);
-
-      const el = elements.gallery.querySelector(`[data-index="${index}"]`);
-      if (el) el.remove();
-
-      [...elements.gallery.querySelectorAll(".captured-item")].forEach((itemEl, newIdx) => {
-        itemEl.setAttribute("data-index", newIdx);
-      });
-
-      if (state.currentTarget && !state.library.includes(state.currentTarget)) {
-        switchToLab();
-      }
-
-      updateProgress();
-      updateStats();
-      saveToLocalStorage();
-    }
-
-    // ============================================
-    // MATCHING
-    // ============================================
-    function compareLiveToTarget(live, target) {
-      if (!live || !target || !target.length) {
-        updateMeter(0);
-        return;
-      }
-
-      const n = Math.min(live.length, target.length);
-
-      let liveVol = 0;
-      for (let i = 0; i < n; i++) liveVol += live[i];
-      liveVol /= n;
-
-      if (liveVol < 5) {
-        updateMeter(0);
-        return;
-      }
-
-      let dotProduct = 0, magA = 0, magB = 0;
-      for (let i = 0; i < n; i++) {
-        const a = live[i];
-        const b = target[i];
-        dotProduct += a * b;
-        magA += a * a;
-        magB += b * b;
-      }
-
-      const magnitude = Math.sqrt(magA) * Math.sqrt(magB);
-      if (!magnitude) {
-        updateMeter(0);
-        return;
-      }
-
-      const similarity = dotProduct / magnitude;
-
-      let percent = 0;
-      if (similarity > 0.7) percent = Math.min(100, ((similarity - 0.7) / 0.3) * 100);
-      updateMeter(Math.floor(percent));
-    }
-
-    function updateMeter(percent) {
-      elements.aiPercent.innerText = percent;
-      elements.aiMeterBar.style.width = percent + "%";
-
-      const text = elements.aiMatchText;
-      if (percent > 80) {
-        text.innerText = "✓ MATCH CONFIRMED";
-        text.style.color = "#00ff88";
-      } else if (percent > 40) {
-        text.innerText = "🔍 DETECTING PATTERN...";
-        text.style.color = "#00d4ff";
-      } else {
-        text.innerText = "✕ NO MATCH";
-        text.style.color = "#555";
-      }
-    }
-
-    // ============================================
-    // CHALLENGE MODE
-    // ============================================
-    function getInitialQuestion(difficulty) {
-      const questions = {
-        1: [
-          "What happens to the spectral pattern when you speak the same word louder?",
+  // ============================================
+  // CHALLENGE MODE
+  // ============================================
+  function getInitialQuestion(difficulty) {
+    const qs = {
+      1: ["What happens to the spectral pattern when you speak the same word louder?",
           "Which frequency range shows the most energy in this pattern?",
-          "How does speaking at different pitches change the spectrum?"
-        ],
-        2: [
-          "Why do vowel sounds typically show energy in the mid-frequency range?",
+          "How does speaking at different pitches change the spectrum?"],
+      2: ["Why do vowel sounds typically show energy in the mid-frequency range?",
           "What causes the peaks and valleys in the frequency spectrum?",
-          "How would whispering this word change the spectral pattern?"
-        ],
-        3: [
-          "Explain the relationship between the fundamental frequency and harmonics you see here.",
+          "How would whispering this word change the spectral pattern?"],
+      3: ["Explain the relationship between the fundamental frequency and harmonics.",
           "Why might two different people saying this word create different patterns?",
-          "What makes this word's spectral signature unique compared to others?"
-        ],
-        4: [
-          "How do voiced sounds differ from unvoiced sounds in spectral characteristics?",
+          "What makes this word's spectral signature unique compared to others?"],
+      4: ["How do voiced sounds differ from unvoiced sounds in spectral characteristics?",
           "What role do formants play in distinguishing different vowel sounds?",
-          "Why does the FFT display discrete bins rather than a continuous spectrum?"
-        ],
-        5: [
-          "How would filtering affect the intelligibility of this word based on its spectrum?",
+          "Why does the FFT display discrete bins rather than a continuous spectrum?"],
+      5: ["How would filtering affect the intelligibility of this word based on its spectrum?",
           "What spectral features would you use for speaker identification?",
-          "Explain the time-frequency resolution trade-off in spectral analysis."
-        ]
-      };
-      const list = questions[difficulty] || questions[1];
-      return list[Math.floor(Math.random() * list.length)];
+          "Explain the time-frequency resolution trade-off in spectral analysis."]
+    };
+    const list = qs[difficulty] || qs[1];
+    return list[Math.floor(Math.random() * list.length)];
+  }
+
+  function startRound() {
+    el.feedback.textContent = '';
+    el.feedback.className = 'feedback-box';
+    el.nextBtn.classList.add('hidden');
+    el.challengeHint.classList.add('hidden');
+    el.optionsContainer.innerHTML = '';
+
+    state.currentTarget = state.library[Math.floor(Math.random() * state.library.length)];
+
+    fitCanvas(el.mysteryCanvas, mysteryCtx);
+    redrawMystery();
+
+    if (state.totalRounds === 0) {
+      el.nextQ.textContent = getInitialQuestion(state.difficulty);
+      el.studentTranscript.textContent = '—';
+      el.aiReply.textContent = 'Hold the talk button and answer the question above!';
     }
 
-    function startRound() {
-      elements.feedback.innerHTML = "";
-      elements.feedback.className = "feedback";
-      elements.nextBtn.classList.add('hidden');
-      elements.challengeHint.classList.add('hidden');
-      elements.optionsContainer.innerHTML = "";
+    const decoys = state.library
+      .filter(item => item.word !== state.currentTarget.word)
+      .sort(() => .5 - Math.random())
+      .slice(0, Math.min(2, state.library.length - 1));
 
-      state.currentTarget = state.library[Math.floor(Math.random() * state.library.length)];
+    [...[state.currentTarget, ...decoys]].sort(() => .5 - Math.random()).forEach(choice => {
+      const btn = document.createElement('button');
+      btn.className = 'option-btn';
+      btn.textContent = choice.word;
+      btn.onclick = () => checkAnswer(choice.word);
+      el.optionsContainer.appendChild(btn);
+    });
 
-      fitCanvas(elements.mysteryCanvas, mysteryCtx);
-      redrawMystery();
+    state.totalRounds++;
+    updateMeter(0);
+  }
 
-      if (state.totalRounds === 0) {
-        elements.nextQ.textContent = getInitialQuestion(state.difficulty);
-        elements.studentTranscript.textContent = "—";
-        elements.aiReply.textContent = "Hold the talk button and answer the question above!";
-      }
+  function checkAnswer(word) {
+    document.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
+    const correct = word === state.currentTarget.word;
 
-      const decoys = state.library
-        .filter(item => item.word !== state.currentTarget.word)
-        .sort(() => 0.5 - Math.random())
-        .slice(0, Math.min(2, state.library.length - 1));
-
-      const choices = [state.currentTarget, ...decoys].sort(() => 0.5 - Math.random());
-
-      choices.forEach(choice => {
-        const btn = document.createElement('button');
-        btn.innerText = choice.word;
-        btn.onclick = () => checkAnswer(choice.word);
-        elements.optionsContainer.appendChild(btn);
-      });
-
-      state.totalRounds++;
-      updateMeter(0);
+    if (correct) {
+      state.score++;
+      el.feedback.textContent = '✓ CORRECT — Great pattern recognition!';
+      el.feedback.className = 'feedback-box correct';
+    } else {
+      el.feedback.textContent = `✕ INCORRECT — The answer was "${state.currentTarget.word}"`;
+      el.feedback.className = 'feedback-box incorrect';
+      el.challengeHint.classList.remove('hidden');
+      el.hintText.textContent = state.currentTarget.analysis;
     }
 
-    function checkAnswer(selectedWord) {
-      document.querySelectorAll('#options-container button').forEach(btn => btn.disabled = true);
+    el.nextBtn.classList.remove('hidden');
+    updateStats();
+    saveToLocalStorage();
+  }
 
-      const isCorrect = selectedWord === state.currentTarget.word;
+  function redrawMystery() {
+    if (!state.currentTarget) return;
+    const canvas = el.mysteryCanvas;
+    const ctx    = mysteryCtx;
+    const dpr    = window.devicePixelRatio || 1;
+    const cssW   = canvas.width / dpr;
+    const cssH   = canvas.height / dpr;
+    ctx.clearRect(0, 0, cssW, cssH);
 
-      if (isCorrect) {
-        state.score++;
-        elements.feedback.innerHTML = "✓ CORRECT! Great pattern recognition!";
-        elements.feedback.className = "feedback correct";
-      } else {
-        elements.feedback.innerHTML = `✕ INCORRECT. The answer was "${state.currentTarget.word}"`;
-        elements.feedback.className = "feedback incorrect";
+    const src = state.currentTarget.img;
+    const scale = Math.min(cssW / src.width, cssH / src.height);
+    const dw = src.width * scale, dh = src.height * scale;
+    ctx.drawImage(src, 0, 0, src.width, src.height,
+      (cssW - dw) / 2, (cssH - dh) / 2, dw, dh);
+  }
 
-        elements.challengeHint.classList.remove('hidden');
-        elements.challengeHint.innerHTML = `
-          <strong>💡 AI Lab Report:</strong><br>
-          ${state.currentTarget.analysis}
-        `;
-      }
-
-      elements.nextBtn.classList.remove('hidden');
-      updateStats();
-      saveToLocalStorage();
-    }
-
-    // Keep aspect ratio (no stretch) after rotate/resize
-    function drawContain(ctx, img, w, h) {
-      const iw = img.width || img.naturalWidth || w;
-      const ih = img.height || img.naturalHeight || h;
-      const scale = Math.min(w / iw, h / ih);
-      const dw = iw * scale;
-      const dh = ih * scale;
-      const dx = (w - dw) / 2;
-      const dy = (h - dh) / 2;
-      ctx.clearRect(0, 0, w, h);
-      ctx.drawImage(img, dx, dy, dw, dh);
-    }
-
-    function redrawMystery() {
-      if (!state.currentTarget) return;
-
-      const canvas = elements.mysteryCanvas;
-      const ctx = mysteryCtx;
-      
-      // Get CSS dimensions
-      const dpr = window.devicePixelRatio || 1;
-      const cssW = canvas.width / dpr;
-      const cssH = canvas.height / dpr;
-
-      // Clear canvas
-      ctx.clearRect(0, 0, cssW, cssH);
-
-      // Get source image dimensions
-      const sourceImg = state.currentTarget.img;
-      const sourceW = sourceImg.width;
-      const sourceH = sourceImg.height;
-
-      // Calculate scale to fit (contain, not cover)
-      const scale = Math.min(cssW / sourceW, cssH / sourceH);
-      
-      // Calculate destination size
-      const destW = sourceW * scale;
-      const destH = sourceH * scale;
-      
-      // Center it
-      const x = (cssW - destW) / 2;
-      const y = (cssH - destH) / 2;
-
-      // Draw with proper scaling
-      ctx.drawImage(sourceImg, 0, 0, sourceW, sourceH, x, y, destW, destH);
-      
-      console.log('Mystery canvas redrawn:', {sourceW, sourceH, destW, destH, scale});
-    }
-
-    // ============================================
-    // AI DIALOG (RECORDER + TTS)
-    // ============================================
-    async function ensureRecordingStream() {
-      if (state.recordingStream) return state.recordingStream;
-
-      state.recordingStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        }
-      });
-      return state.recordingStream;
-    }
-
-    function pickBestRecorderMimeType() {
-      const preferredTypes = [
-        "audio/mp4",
-        "audio/mp4;codecs=mp4a.40.2",
-        "audio/aac",
-        "audio/webm;codecs=opus",
-        "audio/webm"
-      ];
-
-      if (!window.MediaRecorder) return "";
-      for (const t of preferredTypes) {
-        try {
-          if (MediaRecorder.isTypeSupported(t)) return t;
-        } catch (_) {}
-      }
-      return "";
-    }
-
-    async function unlockAudioForiOS() {
-      if (state.ttsUnlocked) return;
-      
-      console.log("🔓 AGGRESSIVE audio unlock starting...");
-
-      try {
-        // Method 1: AudioContext unlock
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (AC) {
-          if (!state.unlockCtx) {
-            state.unlockCtx = new AC();
-            console.log("Created new AudioContext");
-          }
-
-          if (state.unlockCtx.state === 'suspended') {
-            await state.unlockCtx.resume();
-            console.log("✓ AudioContext resumed from suspended");
-          }
-
-          // Play silent buffer
-          const buffer = state.unlockCtx.createBuffer(1, 1, 22050);
-          const source = state.unlockCtx.createBufferSource();
-          source.buffer = buffer;
-          source.connect(state.unlockCtx.destination);
-          source.start(0);
-          console.log("✓ Silent buffer played");
-        }
-
-        // Method 2: HTML5 Audio unlock (MORE AGGRESSIVE)
-        const silentMp3 = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAADhADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwP////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAA4QfxZS8AAAAAAD/+xDEAAADSAAAAAAAAABLAAAAAExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVQ==';
-        
-        const audio1 = new Audio(silentMp3);
-        audio1.volume = 0.01; // Almost silent but not muted
-        audio1.preload = 'auto';
-        audio1.playsInline = true;
-        
-        try {
-          await audio1.play();
-          console.log("✓ Silent MP3 played");
-        } catch (e) {
-          console.warn("Silent MP3 blocked:", e.message);
-        }
-
-        // Method 3: Try playing actual audible beep (helps iOS)
-        const audioCtx = state.unlockCtx || new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-        
-        oscillator.frequency.value = 440; // A4 note
-        gainNode.gain.value = 0.01; // Very quiet
-        
-        oscillator.start(audioCtx.currentTime);
-        oscillator.stop(audioCtx.currentTime + 0.01); // 10ms beep
-        
-        console.log("✓ Beep tone played");
-
-        state.ttsUnlocked = true;
-        console.log("✅ Audio unlock complete!");
-        
-        // Show user confirmation
-        const indicator = document.getElementById('aiReply');
-        if (indicator && indicator.textContent === '—') {
-          indicator.textContent = '✓ Audio enabled! Ready to answer questions.';
-          indicator.style.color = '#00ff88';
-          setTimeout(() => {
-            indicator.textContent = '—';
-            indicator.style.color = '';
-          }, 2000);
-        }
-
-      } catch (e) {
-        console.error("❌ Audio unlock failed:", e);
-        state.ttsUnlocked = true; // Continue anyway
-      }
-    }
-    // Test if audio actually works
-    //async function testAudioPlayback() {
-    //  console.log("🧪 Testing audio playback...");
-      
-    //  try {
-     //   const silentMp3 = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAADhADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwP////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAA4QfxZS8AAAAAAD/+xDEAAADSAAAAAAAAABLAAAAAExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVQ==';
-        
-     //   const testAudio = new Audio(silentMp3);
-     //   testAudio.volume = 0.5;
-     //   testAudio.playsInline = true;
-        
-     //   await testAudio.play();
-     //   console.log("✅ Audio test PASSED - playback works!");
-    //    return true;
-    //  } catch (e) {
-    //    console.error("❌ Audio test FAILED:", e.message);
-    //    alert("⚠️ Audio blocked by browser. Please:\n1. Check device is not in silent mode\n2. Check browser audio permissions\n3. Try with headphones connected");
-    //    return false;
-    //  }
-    //}
-    async function startRecording() {
-      if (!state.currentTarget) {
-        elements.aiReply.textContent = "Enter Challenge Mode first to use the AI quiz 🙂";
-        return;
-      }
-
-      if (state.mediaRecorder && state.mediaRecorder.state === "recording") return;
-
-      elements.talkBtn.disabled = true;
-      elements.talkBtn.textContent = "🎙️ Recording...";
-      state.audioChunks = [];
-
-      try {
-        const stream = await ensureRecordingStream();
-
-        const mimeType = pickBestRecorderMimeType();
-        const options = mimeType ? { mimeType } : undefined;
-
-        state.mediaRecorder = options ? new MediaRecorder(stream, options) : new MediaRecorder(stream);
-
-        state.mediaRecorder.ondataavailable = (e) => {
-          if (e.data && e.data.size > 0) state.audioChunks.push(e.data);
-        };
-
-        state.mediaRecorder.onerror = (e) => {
-          console.error("MediaRecorder error:", e);
-          elements.aiReply.textContent = "⚠️ Recording failed on this device/browser.";
-          elements.talkBtn.disabled = false;
-          elements.talkBtn.textContent = "🎙️ Hold to Talk";
-        };
-
-        // timeslice helps iOS reliably emit data
-        state.mediaRecorder.start(250);
-
-      } catch (err) {
-        console.error("startRecording failed:", err);
-        elements.aiReply.textContent = "❌ Couldn't start recording. Check mic permissions and try again.";
-      } finally {
-        setTimeout(() => { elements.talkBtn.disabled = false; }, 120);
-      }
-    }
-
-    async function stopRecordingAndSend() {
-      if (!state.mediaRecorder) return;
-
-      // ✅ Rapid tap guard: don't stop if not recording
-      if (state.mediaRecorder.state !== "recording") {
-        elements.talkBtn.disabled = false;
-        elements.talkBtn.textContent = "🎙️ Hold to Talk";
-        return;
-      }
-
-      elements.talkBtn.disabled = true;
-      elements.talkBtn.textContent = "⏳ AI Thinking...";
-
-      const stopped = new Promise((resolve) => {
-        state.mediaRecorder.onstop = resolve;
-      });
-
-      try {
-        state.mediaRecorder.stop();
-      } catch (e) {
-        // Another safety net for odd browser states
-        console.error("stop() failed:", e);
-        elements.talkBtn.disabled = false;
-        elements.talkBtn.textContent = "🎙️ Hold to Talk";
-        return;
-      }
-
-      await stopped;
-
-      const mime = state.mediaRecorder.mimeType || 'audio/webm';
-      const blob = new Blob(state.audioChunks, { type: mime });
-
-      if (blob.size < 800) {
-        elements.talkBtn.disabled = false;
-        elements.talkBtn.textContent = "🎙️ Hold to Talk";
-        elements.aiReply.textContent = "I didn't catch that—try speaking a bit louder 🙂";
-        return;
-      }
-
-      const ctx = {
-        mode: "challenge",
-        targetWord: state.currentTarget?.word || null,
-        fft: state.currentTarget?.freq ? Array.from(state.currentTarget.freq).slice(0, 40) : null,
-        analysisText: state.currentTarget?.analysis || "",
-        difficulty: state.difficulty,
-        points: state.points,
-        history: state.dialogHistory,
-        currentQuestion: elements.nextQ.textContent
-      };
-
-      const form = new FormData();
-      // Keep filename generic; backend should use MIME anyway
-      form.append("audio", blob, "answer");
-      form.append("context", JSON.stringify(ctx));
-
-      try {
-        const resp = await fetch(DIALOG_URL, { method: "POST", body: form });
-        if (!resp.ok) throw new Error("Dialog request failed");
-
-        const data = await resp.json();
-
-        elements.studentTranscript.textContent = data.transcript || "(no transcript)";
-        elements.aiReply.textContent = data.reply || "(no reply)";
-        elements.nextQ.textContent = data.nextQuestion || "—";
-
-        state.difficulty = data.difficulty ?? state.difficulty;
-        state.points = data.totalPoints ?? state.points;
-
-        elements.diff.textContent = state.difficulty;
-        elements.pts.textContent = state.points;
-
-        if (data.transcript) state.dialogHistory.push({ role: "user", content: data.transcript });
-        if (data.reply) state.dialogHistory.push({ role: "assistant", content: data.reply });
-
-        // TTS - Enhanced for mobile
-        if (data.ttsAudioBase64 && data.ttsMime) {
-          console.log("🔊 Preparing TTS audio...");
-          
-          const bytes = Uint8Array.from(atob(data.ttsAudioBase64), c => c.charCodeAt(0));
-          const audioBlob = new Blob([bytes], { type: data.ttsMime });
-          const url = URL.createObjectURL(audioBlob);
-
-          // Store for replay
-          state.lastTtsData = { blob: audioBlob, mime: data.ttsMime };
-
-          // Show replay button
-          const replayBtn = document.getElementById('replayTtsBtn');
-          if (replayBtn) {
-            replayBtn.classList.remove('hidden');
-            replayBtn.onclick = () => playStoredTts();
-          }
-
-          const audio = new Audio(url);
-          audio.playsInline = true;
-          audio.preload = "auto";
-          audio.volume = 1.0;
-          
-          // CRITICAL for iOS: load the audio first
-          audio.load();
-          
-          // Wait a tiny bit for load
-          await new Promise(resolve => setTimeout(resolve, 50));
-
-          console.log("Audio state:", {
-            readyState: audio.readyState,
-            paused: audio.paused,
-            volume: audio.volume
-          });
-
-          try {
-            const playPromise = audio.play();
-            await playPromise;
-            console.log("✅ TTS playing successfully!");
-            
-            // Visual confirmation
-            elements.aiReply.style.borderLeft = "3px solid #00ff88";
-            setTimeout(() => {
-              elements.aiReply.style.borderLeft = "";
-            }, 2000);
-            
-          } catch (e) {
-            console.error("❌ TTS autoplay blocked:", e.name, e.message);
-            console.log("💡 Showing replay button for manual playback");
-            
-            // Visual indicator
-            elements.aiReply.style.borderLeft = "3px solid #ffaa00";
-            elements.aiReply.title = "Audio ready - click Play button";
-            
-            alert("🔊 Audio ready! Tap the 'Play Audio' button below to hear the response.");
-          }
-
-          audio.onended = () => {
-            URL.revokeObjectURL(url);
-            console.log("✓ TTS playback complete");
-          };
-          
-          audio.onerror = (e) => {
-            console.error("❌ TTS error:", e);
-            URL.revokeObjectURL(url);
-          };
-        }
-        updateStats();
-        saveToLocalStorage();
-      } catch (error) {
-        console.error('Dialog error:', error);
-        elements.aiReply.textContent = "⚠️ Dialog failed. Check connection and try again.";
-      } finally {
-        elements.talkBtn.disabled = false;
-        elements.talkBtn.textContent = "🎙️ Hold to Talk";
-      }
-    }
   // ============================================
-  // TTS REPLAY
+  // AI DIALOG — RECORDER + TTS
   // ============================================
-  async function playStoredTts() {
-    if (!state.lastTtsData) {
-      console.warn("No TTS audio stored");
-      alert("No audio available to replay");
+  async function ensureRecordingStream() {
+    if (state.recordingStream) return state.recordingStream;
+    state.recordingStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+    });
+    return state.recordingStream;
+  }
+
+  function pickBestMime() {
+    if (!window.MediaRecorder) return '';
+    for (const t of ['audio/mp4','audio/mp4;codecs=mp4a.40.2','audio/aac','audio/webm;codecs=opus','audio/webm']) {
+      try { if (MediaRecorder.isTypeSupported(t)) return t; } catch (_) {}
+    }
+    return '';
+  }
+
+  async function unlockAudioForiOS() {
+    if (state.ttsUnlocked) return;
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) {
+        if (!state.unlockCtx) state.unlockCtx = new AC();
+        if (state.unlockCtx.state === 'suspended') await state.unlockCtx.resume();
+        const buf = state.unlockCtx.createBuffer(1, 1, 22050);
+        const src = state.unlockCtx.createBufferSource();
+        src.buffer = buf;
+        src.connect(state.unlockCtx.destination);
+        src.start(0);
+      }
+      state.ttsUnlocked = true;
+    } catch (e) {
+      state.ttsUnlocked = true;
+    }
+  }
+
+  let isRecordingHold = false;
+
+  async function startRecording() {
+    if (!state.currentTarget) {
+      el.aiReply.textContent = "Enter Challenge Mode first to use the AI quiz 🙂";
+      return;
+    }
+    if (state.mediaRecorder && state.mediaRecorder.state === "recording") return;
+
+    el.talkBtn.disabled = true;
+    el.talkBtn.textContent = "🎙️ Recording…";
+    el.talkBtn.classList.add('recording');
+    state.audioChunks = [];
+
+    try {
+      const stream = await ensureRecordingStream();
+      const mime   = pickBestMime();
+      state.mediaRecorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+
+      state.mediaRecorder.ondataavailable = e => {
+        if (e.data && e.data.size > 0) state.audioChunks.push(e.data);
+      };
+      state.mediaRecorder.onerror = e => {
+        console.error("MediaRecorder error:", e);
+        el.talkBtn.disabled = false;
+        el.talkBtn.textContent = "🎙️ Hold to Talk";
+        el.talkBtn.classList.remove('recording');
+      };
+      state.mediaRecorder.start(250);
+    } catch (err) {
+      console.error("startRecording failed:", err);
+      el.aiReply.textContent = "❌ Couldn't start recording. Check mic permissions.";
+    } finally {
+      setTimeout(() => { el.talkBtn.disabled = false; }, 120);
+    }
+  }
+
+  async function stopRecordingAndSend() {
+    if (!state.mediaRecorder) return;
+    if (state.mediaRecorder.state !== "recording") {
+      el.talkBtn.disabled = false;
+      el.talkBtn.textContent = "🎙️ Hold to Talk";
+      el.talkBtn.classList.remove('recording');
       return;
     }
 
-    console.log("🔊 Replaying TTS audio...");
+    el.talkBtn.disabled = true;
+    el.talkBtn.textContent = "⏳ Thinking…";
+    el.talkBtn.classList.remove('recording');
 
-    const url = URL.createObjectURL(state.lastTtsData.blob);
+    const stopped = new Promise(resolve => { state.mediaRecorder.onstop = resolve; });
+    try { state.mediaRecorder.stop(); } catch (e) {
+      el.talkBtn.disabled = false;
+      el.talkBtn.textContent = "🎙️ Hold to Talk";
+      return;
+    }
+    await stopped;
+
+    const mime = state.mediaRecorder.mimeType || 'audio/webm';
+    const blob = new Blob(state.audioChunks, { type: mime });
+
+    if (blob.size < 800) {
+      el.talkBtn.disabled = false;
+      el.talkBtn.textContent = "🎙️ Hold to Talk";
+      el.aiReply.textContent = "I didn't catch that — try speaking a bit louder 🙂";
+      return;
+    }
+
+    const ctx = {
+      mode: "challenge",
+      targetWord: state.currentTarget?.word || null,
+      fft: state.currentTarget?.freq ? Array.from(state.currentTarget.freq).slice(0, 40) : null,
+      targetPitchHz: state.currentTarget?.pitchHz || 0,
+      targetPitchClarity: state.currentTarget?.pitchClarity || 0,
+      analysisText: state.currentTarget?.analysis || "",
+      difficulty: state.difficulty,
+      points: state.points,
+      history: state.dialogHistory,
+      currentQuestion: el.nextQ.textContent
+    };
+
+    const form = new FormData();
+    form.append("audio", blob, "answer");
+    form.append("context", JSON.stringify(ctx));
+
+    try {
+      const resp = await fetch(DIALOG_URL, { method: "POST", body: form });
+      if (!resp.ok) throw new Error("Dialog request failed");
+
+      const data = await resp.json();
+
+      el.studentTranscript.textContent = data.transcript || "(no transcript)";
+      el.aiReply.textContent = data.reply || "(no reply)";
+      el.nextQ.textContent = data.nextQuestion || "—";
+
+      state.difficulty = data.difficulty ?? state.difficulty;
+      state.points     = data.totalPoints  ?? state.points;
+      el.diff.textContent = state.difficulty;
+      el.pts.textContent  = state.points;
+
+      if (data.transcript) state.dialogHistory.push({ role: "user",      content: data.transcript });
+      if (data.reply)      state.dialogHistory.push({ role: "assistant", content: data.reply });
+
+      // TTS
+      if (data.ttsAudioBase64 && data.ttsMime) {
+        const bytes = Uint8Array.from(atob(data.ttsAudioBase64), c => c.charCodeAt(0));
+        const audioBlob = new Blob([bytes], { type: data.ttsMime });
+        state.lastTtsData = { blob: audioBlob, mime: data.ttsMime };
+
+        const replayBtn = document.getElementById('replayTtsBtn');
+        if (replayBtn) {
+          replayBtn.classList.remove('hidden');
+          replayBtn.onclick = () => playStoredTts();
+        }
+
+        const url   = URL.createObjectURL(audioBlob);
+        const audio = new Audio(url);
+        audio.playsInline = true;
+        audio.volume = 1.0;
+        audio.load();
+        await new Promise(r => setTimeout(r, 50));
+
+        try {
+          await audio.play();
+        } catch (e) {
+          console.error("TTS autoplay blocked:", e.name);
+          alert("🔊 Audio ready! Tap 'Play Audio' to hear the response.");
+        }
+        audio.onended = () => URL.revokeObjectURL(url);
+        audio.onerror = () => URL.revokeObjectURL(url);
+      }
+
+      updateStats();
+      saveToLocalStorage();
+    } catch (err) {
+      console.error('Dialog error:', err);
+      el.aiReply.textContent = "⚠ Dialog failed. Check connection and try again.";
+    } finally {
+      el.talkBtn.disabled = false;
+      el.talkBtn.textContent = "🎙️ Hold to Talk";
+    }
+  }
+
+  // ─── TTS REPLAY ───────────────────────────────────────
+  async function playStoredTts() {
+    if (!state.lastTtsData) { alert("No audio available to replay"); return; }
+    const url   = URL.createObjectURL(state.lastTtsData.blob);
     const audio = new Audio(url);
     audio.playsInline = true;
     audio.volume = 1.0;
-    
-    // Load first
     audio.load();
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(r => setTimeout(r, 100));
 
     const replayBtn = document.getElementById('replayTtsBtn');
-    if (replayBtn) {
-      replayBtn.textContent = "🔊 Playing...";
-      replayBtn.disabled = true;
-    }
+    if (replayBtn) { replayBtn.textContent = "🔊 Playing…"; replayBtn.disabled = true; }
 
     try {
-      // Try to play
-      const playPromise = audio.play();
-      await playPromise;
-      
-      console.log("✅ Replay successful!");
-      
-      // Visual feedback
-      elements.aiReply.style.backgroundColor = "rgba(0, 255, 136, 0.1)";
-      setTimeout(() => {
-        elements.aiReply.style.backgroundColor = "";
-      }, 2000);
-      
+      await audio.play();
     } catch (e) {
-      console.error("❌ Replay failed:", e);
-      
-      // Give detailed error
-      let errorMsg = "Audio playback blocked.\n\n";
-      errorMsg += "Please try:\n";
-      errorMsg += "• Turn OFF silent mode\n";
-      errorMsg += "• Increase volume\n";
-      errorMsg += "• Use headphones\n";
-      errorMsg += "• Allow audio in browser settings\n";
-      errorMsg += "• Try Chrome browser";
-      
-      alert(errorMsg);
+      alert("Audio playback blocked.\n\n• Turn off silent mode\n• Increase volume\n• Try Chrome");
     }
 
     audio.onended = () => {
       URL.revokeObjectURL(url);
-      if (replayBtn) {
-        replayBtn.textContent = "🔊 Play Audio";
-        replayBtn.disabled = false;
-      }
-      console.log("✓ Replay complete");
+      if (replayBtn) { replayBtn.textContent = "🔊 Play Audio"; replayBtn.disabled = false; }
     };
-    
     audio.onerror = () => {
       URL.revokeObjectURL(url);
-      if (replayBtn) {
-        replayBtn.textContent = "🔊 Play Audio";
-        replayBtn.disabled = false;
-      }
+      if (replayBtn) { replayBtn.textContent = "🔊 Play Audio"; replayBtn.disabled = false; }
     };
   }
 
-
-    // ============================================
-    // UI HELPERS
-    // ============================================
-    function unlockAudioNow() {
-      // Do NOT await inside the gesture path
-      const silentMp3 = 'data:audio/mp3;base64,SUQz...'; // your existing one
-      const a = new Audio(silentMp3);
-      a.playsInline = true;
-      a.volume = 0.01;
-
-      const p = a.play(); // trigger immediately
-      if (p && typeof p.catch === "function") {
-        p.then(() => {
-          state.ttsUnlocked = true;
-        }).catch(() => {
-          // don't set unlocked on failure
-          state.ttsUnlocked = false;
-        });
-      }
-    }
-    function showStatus(message, type = 'info') {
-      elements.wordHint.innerHTML = message;
-      if (type === 'loading') elements.wordHint.classList.add('loading');
-      else elements.wordHint.classList.remove('loading');
-    }
-
-    function updateProgress() {
-      const count = state.library.length;
-      elements.count.innerText = count;
-      elements.statWords.innerText = count;
-
-      const percentage = (count / 4) * 100;
-      elements.progressBar.style.width = percentage + '%';
-
-      elements.goToChallengeBtn.disabled = count < 4;
-
-      if (count >= 4) {
-        elements.goToChallengeBtn.style.boxShadow = "0 0 25px #ff00d4";
-        showStatus('✓ Dataset complete! Ready for Challenge Mode!', 'success');
-      }
-    }
-
-    function updateStats() {
-      elements.statScore.innerText = state.score;
-      elements.statDifficulty.innerText = state.difficulty;
-      elements.pts.innerText = state.points;
-    }
-
-    function switchToChallenge() {
-      // force auto off when entering challenge
-      state.autoCapture.enabled = false;
-      elements.autoBtn.textContent = "🤖 Auto Capture: OFF";
-      elements.wordInput.disabled = false;
-      // captureBtn should stay enabled for manual lab, but challenge hides it anyway
-      state.pendingCapture = null;
-      closeLabelModal();
-      elements.labSection.classList.add('hidden');
-      elements.challengeSection.style.display = 'flex';
-
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          fitCanvas(elements.mysteryCanvas, mysteryCtx);
-          fitCanvas(elements.liveCanvas, liveCtx);
-
-          state.totalRounds = 0;
-          state.score = 0;
-
-          startRound();
-          console.log('Challenge mode activated. Target word:', state.currentTarget?.word);
-        });
-      });
-    }
-
-    function switchToLab() {
-      elements.challengeSection.style.display = 'none';
-      elements.labSection.classList.remove('hidden');
-      state.currentTarget = null;
-
-      requestAnimationFrame(() => {
-        fitCanvas(elements.liveCanvas, liveCtx);
-        fitCanvas(elements.mysteryCanvas, mysteryCtx);
-      });
-    }
-    function isLabMode() {
-      // lab is active when lab section is visible and challenge is not
-      return elements.challengeSection.style.display !== "flex";
-    }
   // ============================================
-  // DATA PERSISTENCE (localStorage)
+  // UI HELPERS
+  // ============================================
+  function showStatus(msg, type = 'info') {
+    el.wordHint.textContent = msg;
+    if (type === 'loading') el.wordHint.classList.add('loading');
+    else el.wordHint.classList.remove('loading');
+  }
+
+  function updateProgress() {
+    const count = state.library.length;
+    el.count.textContent = count;
+    el.statWords.textContent = count;
+    el.progressBar.style.width = (count / 4 * 100) + '%';
+    el.goToChallengeBtn.disabled = count < 4;
+
+    if (count >= 4) {
+      el.goToChallengeBtn.style.boxShadow = '0 0 20px rgba(200,80,255,.5)';
+      showStatus('✓ Dataset complete! Ready for Challenge Mode.', 'success');
+    }
+  }
+
+  function updateStats() {
+    el.statScore.textContent = state.score;
+    el.statDifficulty.textContent = state.difficulty;
+    el.pts.textContent = state.points;
+  }
+
+  function switchToChallenge() {
+    state.autoCapture.enabled = false;
+    el.autoBtn.textContent = "🤖 Auto: OFF";
+    el.wordInput.disabled = false;
+    state.pendingCapture = null;
+    closeLabelModal();
+
+    el.labSection.style.display = 'none';
+    el.challengeSection.style.display = 'flex';
+
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      fitCanvas(el.mysteryCanvas, mysteryCtx);
+      fitCanvas(el.liveCanvas, liveCtx);
+      state.totalRounds = 0;
+      state.score = 0;
+      startRound();
+    }));
+  }
+
+  function switchToLab() {
+    el.challengeSection.style.display = 'none';
+    el.labSection.style.display = '';
+    state.currentTarget = null;
+    requestAnimationFrame(() => {
+      fitCanvas(el.liveCanvas, liveCtx);
+      fitCanvas(el.mysteryCanvas, mysteryCtx);
+    });
+  }
+
+  function isLabMode() {
+    return el.challengeSection.style.display !== "flex";
+  }
+
+  // ============================================
+  // PERSISTENCE
   // ============================================
   const STORAGE_KEY = 'sonic-fingerprint-lab-data';
-  const STORAGE_VERSION = 1;
+  const STORAGE_VER = 1;
 
-  // Save all important state to localStorage
   function saveToLocalStorage() {
     try {
-      // Convert library items: canvas → data URL
-      const libraryToSave = state.library.map(item => ({
+      const lib = state.library.map(item => ({
         word: item.word,
         imgDataUrl: item.img.toDataURL('image/png'),
         freq: Array.from(item.freq),
+        pitchHz: item.pitchHz || 0,
+        pitchClarity: item.pitchClarity || 0,
         analysis: item.analysis,
         timestamp: item.timestamp
       }));
-
-      const dataToSave = {
-        version: STORAGE_VERSION,
-        library: libraryToSave,
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        version: STORAGE_VER,
+        library: lib,
         score: state.score,
         difficulty: state.difficulty,
         points: state.points,
         dialogHistory: state.dialogHistory.slice(-20),
         savedAt: new Date().toISOString()
-      };
-
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
-      console.log('✓ Data saved to localStorage:', dataToSave.library.length, 'words');
-    } catch (error) {
-      console.error('Failed to save to localStorage:', error);
-      if (error.name === 'QuotaExceededError') {
-        alert('Storage quota exceeded. Try deleting some words.');
-      }
+      }));
+    } catch (err) {
+      console.error('Save error:', err);
+      if (err.name === 'QuotaExceededError') alert('Storage quota exceeded — try deleting some words.');
     }
   }
 
-  // Load state from localStorage
   async function loadFromLocalStorage() {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      if (!saved) {
-        console.log('No saved data found');
-        return false;
-      }
-
+      if (!saved) return false;
       const data = JSON.parse(saved);
-      
-      if (data.version !== STORAGE_VERSION) {
-        console.warn('Saved data version mismatch, clearing...');
-        localStorage.removeItem(STORAGE_KEY);
-        return false;
-      }
+      if (data.version !== STORAGE_VER) { localStorage.removeItem(STORAGE_KEY); return false; }
 
-      console.log('📥 Loading saved data from', data.savedAt);
-      console.log('Found', data.library.length, 'saved words');
-
-      // Restore library: data URL → canvas
       for (const item of data.library) {
         const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        
-        const img = new Image();
-        await new Promise((resolve, reject) => {
+        const img    = new Image();
+        await new Promise((res, rej) => {
           img.onload = () => {
-            canvas.width = img.width;
-            canvas.height = img.height;
-            ctx.drawImage(img, 0, 0);
-            resolve();
+            canvas.width = img.width; canvas.height = img.height;
+            canvas.getContext('2d').drawImage(img, 0, 0);
+            res();
           };
-          img.onerror = reject;
+          img.onerror = rej;
           img.src = item.imgDataUrl;
         });
 
         state.library.push({
-          word: item.word,
-          img: canvas,
+          word: item.word, img: canvas,
           freq: new Uint8Array(item.freq),
-          analysis: item.analysis,
-          timestamp: item.timestamp
+          pitchHz: item.pitchHz || 0, pitchClarity: item.pitchClarity || 0,
+          analysis: item.analysis, timestamp: item.timestamp
         });
-
         addToGallery(item.word, canvas, state.library.length - 1);
       }
 
@@ -2254,240 +2113,163 @@
       updateProgress();
       updateStats();
 
-      console.log('✓ Data loaded successfully!');
-      
       if (data.library.length > 0) {
-        showStatus(`✓ Restored ${data.library.length} captured words from previous session`, 'success');
-        setTimeout(() => {
-          showStatus('Ready to capture more words or enter Challenge Mode!', 'info');
-        }, 3000);
+        showStatus(`✓ Restored ${data.library.length} word(s) from previous session`, 'success');
+        setTimeout(() => showStatus('Ready to capture more words or enter Challenge Mode!', 'info'), 3000);
       }
-
       return true;
-    } catch (error) {
-      console.error('Failed to load from localStorage:', error);
+    } catch (err) {
+      console.error('Load error:', err);
       localStorage.removeItem(STORAGE_KEY);
       return false;
     }
   }
 
-  // Clear all saved data
   function clearSavedData() {
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-      console.log('✓ Saved data cleared');
-    } catch (error) {
-      console.error('Failed to clear saved data:', error);
-    }
+    try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
   }
 
-  // Get storage info (for debugging)
-  function getStorageInfo() {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (!saved) return { exists: false };
-    
-    const sizeKB = (saved.length * 2) / 1024;
-    const data = JSON.parse(saved);
-    
-    return {
-      exists: true,
-      sizeKB: sizeKB.toFixed(2),
-      wordCount: data.library?.length || 0,
-      savedAt: data.savedAt,
-      version: data.version
-    };
-  }
-    // ============================================
-    // EVENTS
-    // ============================================
-    elements.startBtn.onclick = initAudio;
-    elements.captureBtn.onclick = captureWord;
-    elements.goToChallengeBtn.onclick = switchToChallenge;
-    elements.backToLabBtn.onclick = switchToLab;
-    elements.nextBtn.onclick = startRound;
-    // Enable auto button once mic is active
-    // (add this inside initAudio() after mic success, right after you enable captureBtn)
+  // ============================================
+  // EVENT LISTENERS
+  // ============================================
+  el.startBtn.addEventListener('click', initAudio);
+  el.captureBtn.addEventListener('click', captureWord);
+  el.goToChallengeBtn.addEventListener('click', switchToChallenge);
+  el.backToLabBtn.addEventListener('click', switchToLab);
+  el.nextBtn.addEventListener('click', startRound);
 
+  el.autoBtn.addEventListener('click', () => {
+    state.autoCapture.enabled = !state.autoCapture.enabled;
+    el.autoBtn.textContent = state.autoCapture.enabled ? "🤖 Auto: ON" : "🤖 Auto: OFF";
+    el.wordInput.disabled  = state.autoCapture.enabled;
+    el.captureBtn.disabled = state.autoCapture.enabled;
 
-    // Auto toggle
-    elements.autoBtn.onclick = () => {
-      state.autoCapture.enabled = !state.autoCapture.enabled;
+    showStatus(
+      state.autoCapture.enabled
+        ? "Auto Capture ON — speak a word and I'll freeze it for labeling."
+        : "Auto Capture OFF — use manual Capture.",
+      'info'
+    );
 
-      elements.autoBtn.textContent = state.autoCapture.enabled
-        ? "🤖 Auto Capture: ON"
-        : "🤖 Auto Capture: OFF";
-
-      // Optional UX: disable manual typing/capture while auto is on
-      elements.wordInput.disabled = state.autoCapture.enabled;
-      elements.captureBtn.disabled = state.autoCapture.enabled ? true : false;
-
-      showStatus(
-        state.autoCapture.enabled
-          ? "Auto Capture ON — speak a word and I’ll freeze it for labeling."
-          : "Auto Capture OFF — use manual Capture & Analyze.",
-        "info"
-      );
-
-      // reset detector state
-      state.autoCapture.inSpeech = false;
-      state.autoCapture.speechFrames = 0;
-      state.autoCapture.silenceFrames = 0;
-      state.autoCapture.peak = 0;
-      state.autoCapture.baseline = 0;        // recompute baseline from fresh silence
-      state.autoCapture.cooldownUntil = 0;   // remove any leftover cooldown
-    };
-
-    // Modal: Retry / Cancel
-    elements.modalRetryBtn.onclick = () => {
-      state.pendingCapture = null;
-      closeLabelModal();
-    };
-
-  elements.modalCancelBtn.onclick = () => {
-    state.pendingCapture = null;
-    state.autoCapture.enabled = false;
-    elements.autoBtn.textContent = "🤖 Auto Capture: OFF";
-    elements.wordInput.disabled = false;
-    elements.captureBtn.disabled = false;
-    closeLabelModal();
-  };
-
-  elements.modalSaveBtn.onclick = async () => {
-  const word = elements.modalWordInput.value.toUpperCase().trim();
-
-  if (!word) return alert("Type the word first!");
-  if (state.library.some(item => item.word === word)) {
-    return alert("That word already exists—use a different one.");
-  }
-
-  const pending = state.pendingCapture;
-  if (!pending) return;
-
-  closeLabelModal();
-
-  showStatus(`Analyzing spectral data for "${word}"...`, 'loading');
-  elements.recordingIndicator.classList.add('active');
-
-  let aiAnalysis = "Analysis unavailable (Offline Mode)";
-
-  try {
-    const response = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        word: word,
-        frequencies: Array.from(pending.freq).slice(0, 40),
-        sampleRate: state.audioCtx.sampleRate,
-        fftSize: state.analyser.fftSize
-      })
+    Object.assign(state.autoCapture, {
+      inSpeech: false, speechFrames: 0, silenceFrames: 0,
+      peak: 0, baseline: 0, cooldownUntil: 0
     });
-
-    if (response.ok) {
-      const data = await response.json();
-      aiAnalysis = data.analysis;
-      showStatus(`✓ Analysis complete for "${word}"`, 'success');
-      setTimeout(() => showStatus(aiAnalysis, 'analysis'), 500);
-    } else {
-      throw new Error("Server error");
-    }
-  } catch (error) {
-    console.error('Analysis error:', error);
-    showStatus('⚠️ Connection failed. Using offline mode.', 'error');
-  }
-
-  state.library.push({
-    word,
-    img: pending.img,
-    freq: pending.freq,
-    analysis: aiAnalysis,
-    timestamp: pending.timestamp
   });
 
-  addToGallery(word, pending.img, state.library.length - 1);
-  updateProgress();
-  updateStats();
+  el.modalRetryBtn.addEventListener('click', () => {
+    state.pendingCapture = null;
+    closeLabelModal();
+  });
 
-  elements.recordingIndicator.classList.remove('active');
+  el.modalCancelBtn.addEventListener('click', () => {
+    state.pendingCapture = null;
+    state.autoCapture.enabled = false;
+    el.autoBtn.textContent = "🤖 Auto: OFF";
+    el.wordInput.disabled = false;
+    el.captureBtn.disabled = false;
+    closeLabelModal();
+  });
 
-  if (state.library.length === 1) elements.statsBar.style.display = 'flex';
-  saveToLocalStorage();
-
-  state.pendingCapture = null;
-
-  // Keep auto mode on (optional) — it’ll continue listening after cooldown
-};
-    elements.resetLabBtn.onclick = () => {
-      if (confirm('This will delete all your captured words and reset progress. Continue?')) {
-        clearSavedData();  // Clear localStorage first
-        location.reload();
-      }
-    };
-
-    elements.wordInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter' && !elements.captureBtn.disabled) captureWord();
-    });
-
-    // Hold-to-record using Pointer Events (fixes "never let go" on mobile)
-    let isRecordingHold = false;
-
-    async function endHold() {
-      if (!isRecordingHold) return;
-      isRecordingHold = false;
-      await stopRecordingAndSend();
+  el.modalSaveBtn.addEventListener('click', async () => {
+    const word = el.modalWordInput.value.toUpperCase().trim();
+    if (!word) { alert("Type the word first!"); return; }
+    if (state.library.some(item => item.word === word)) {
+      alert("That word already exists — use a different one."); return;
     }
 
-    elements.talkBtn.addEventListener("pointerdown", async (e) => {
-      e.preventDefault();
-      if (!state.ttsUnlocked) {
-        unlockAudioNow(); // <-- no await
-      }
-      // now do the async things
-      (async () => {
-        if (isRecordingHold) return;
-        isRecordingHold = true;
-        try { elements.talkBtn.setPointerCapture(e.pointerId); } catch (_) {}
-        await startRecording();
-      })();
+    const pending = state.pendingCapture;
+    if (!pending) return;
+    closeLabelModal();
+
+    showStatus(`Analyzing spectral data for "${word}"…`, 'loading');
+    el.recordingIndicator.classList.add('active');
+
+    let aiAnalysis = "Analysis unavailable (Offline Mode)";
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          word,
+          frequencies: Array.from(pending.freq).slice(0, 40),
+          sampleRate: state.audioCtx.sampleRate,
+          fftSize: state.analyser.fftSize,
+          estimatedPitchHz: pending.pitchHz || 0,
+          pitchClarity: pending.pitchClarity || 0
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        aiAnalysis = data.analysis;
+        showStatus(`✓ Analysis complete for "${word}"`, 'success');
+        setTimeout(() => showStatus(aiAnalysis, 'analysis'), 500);
+      } else throw new Error("Server error");
+    } catch (err) {
+      showStatus('⚠ Connection failed — using offline mode.', 'error');
+    }
+
+    state.library.push({
+      word, img: pending.img, freq: pending.freq,
+      pitchHz: pending.pitchHz || 0, pitchClarity: pending.pitchClarity || 0,
+      analysis: aiAnalysis, timestamp: pending.timestamp
     });
-    elements.talkBtn.addEventListener("pointerup", async (e) => {
-      e.preventDefault();
-      await endHold();
-    });
 
-    elements.talkBtn.addEventListener("pointercancel", async (e) => {
-      e.preventDefault();
-      await endHold();
-    });
+    addToGallery(word, pending.img, state.library.length - 1);
+    updateProgress();
+    updateStats();
 
-    elements.talkBtn.addEventListener("lostpointercapture", async () => {
-      await endHold();
-    });
+    el.recordingIndicator.classList.remove('active');
+    if (state.library.length === 1) el.statsBar.style.display = 'flex';
+    saveToLocalStorage();
+    state.pendingCapture = null;
+  });
 
-    console.log('🧬 Sonic Fingerprint Lab initialized');
+  el.resetLabBtn.addEventListener('click', () => {
+    if (confirm('Delete all captured words and reset progress?')) {
+      clearSavedData();
+      location.reload();
+    }
+  });
 
+  el.wordInput.addEventListener('keypress', e => {
+    if (e.key === 'Enter' && !el.captureBtn.disabled) captureWord();
+  });
 
+  el.modalWordInput.addEventListener('keypress', e => {
+    if (e.key === 'Enter') el.modalSaveBtn.click();
+  });
+
+  // Hold-to-record (pointer events — works on mobile)
+  el.talkBtn.addEventListener("pointerdown", async e => {
+    e.preventDefault();
+    if (!state.ttsUnlocked) unlockAudioForiOS();
+    if (isRecordingHold) return;
+    isRecordingHold = true;
+    try { el.talkBtn.setPointerCapture(e.pointerId); } catch (_) {}
+    await startRecording();
+  });
+
+  async function endHold() {
+    if (!isRecordingHold) return;
+    isRecordingHold = false;
+    await stopRecordingAndSend();
+  }
+
+  el.talkBtn.addEventListener("pointerup",      e => { e.preventDefault(); endHold(); });
+  el.talkBtn.addEventListener("pointercancel",  e => { e.preventDefault(); endHold(); });
+  el.talkBtn.addEventListener("lostpointercapture", () => endHold());
 
   // ============================================
-  // INITIALIZE - Load saved data on page load
+  // INIT
   // ============================================
-  (async function initializeApp() {
-    console.log('🧬 Sonic Fingerprint Lab initializing...');
-    
+  (async () => {
     const loaded = await loadFromLocalStorage();
-    
     if (loaded && state.library.length > 0) {
-      elements.statsBar.style.display = 'flex';
-      console.log('✓ Loaded', state.library.length, 'saved words');
-    } else {
-      console.log('✓ App initialized (no saved data)');
+      el.statsBar.style.display = 'flex';
     }
-    
-    const storageInfo = getStorageInfo();
-    console.log('Storage info:', storageInfo);
+    console.log('🧬 Sonic Fingerprint Lab ready!');
   })();
-
-  console.log('🧬 Sonic Fingerprint Lab ready!');
-  </script>
-
+</script>
 </body>
 </html>
