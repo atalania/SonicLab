@@ -152,7 +152,13 @@ def safe_parse_json(s: str) -> Tuple[bool, Dict[str, Any]]:
     except Exception:
         return False, {}
 
-
+def is_idk(text: str) -> bool:
+    t = (text or "").strip().lower()
+    phrases = [
+        "i don't know", "i dont know", "idk", "no idea", "not sure",
+        "i'm not sure", "im not sure", "i forgot", "can't remember", "cant remember"
+    ]
+    return any(p in t for p in phrases)
 # =========================================================
 # Spectral Metrics
 # =========================================================
@@ -455,6 +461,70 @@ def dialog():
         except Exception as e:
             logger.error(f"Transcription error: {e}")
             return jsonify({"error": "Transcription failed"}), 500
+
+        if is_idk(transcript):
+            teach_prompt = f"""
+        You are a Physics + Signal Processing tutor. The student said they don't know.
+
+        Question: "{current_question}"
+
+        Give a short walkthrough that teaches the correct answer:
+        - Step 1: Restate the question in simpler words.
+        - Step 2: Explain the key concept needed.
+        - Step 3: Apply it to a concrete example related to speaking (louder/softer, higher pitch, whisper).
+        - Step 4: Give a one-sentence 'rule of thumb'.
+        - Step 5: Ask ONE quick check-for-understanding question.
+
+        Keep it clear and high-school friendly. No fluff.
+        Return STRICT JSON:
+        {{
+        "reply": string,
+        "score": number,
+        "newDifficulty": integer,
+        "nextQuestion": string
+        }}
+        Set score to 0.0–0.2 since they didn’t answer.
+        Set newDifficulty to max(1, currentDifficulty-1).
+        """
+            completion = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You output STRICT JSON only. No markdown."},
+                    {"role": "user", "content": teach_prompt},
+                ],
+                temperature=0.3,
+                max_tokens=420,
+            )
+
+            raw = (completion.choices[0].message.content or "").strip()
+            ok, payload = safe_parse_json(raw)
+            if not ok:
+                payload = {
+                    "reply": "Step 1: ...", "score": 0.1,
+                    "newDifficulty": max(1, difficulty-1),
+                    "nextQuestion": get_next_question(max(1, difficulty-1)),
+                }
+
+            score = clamp_float(payload.get("score", 0.1), 0.0, 1.0, 0.1)
+            new_difficulty = clamp_int(payload.get("newDifficulty", max(1, difficulty-1)), 1, 5, max(1, difficulty-1))
+            reply = truncate(payload.get("reply", ""), 2000)
+            next_question = truncate(payload.get("nextQuestion", get_next_question(new_difficulty)), 500)
+
+            points_earned = 0  # since they said IDK
+            total_points += points_earned
+
+            response_data = {
+                "transcript": transcript,
+                "reply": reply,
+                "score": score,
+                "pointsEarned": points_earned,
+                "pointsReason": "Student said IDK -> teaching mode (0 pts)",
+                "totalPoints": total_points,
+                "difficulty": new_difficulty,
+                "nextQuestion": next_question,
+            }
+            # (TTS same as usual)
+            return jsonify(response_data)
 
         # Context
         difficulty = clamp_int(ctx.get("difficulty", 1), 1, 5, 1)

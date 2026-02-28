@@ -1245,7 +1245,7 @@
     // ============================================
     // AUTO CAPTURE (VAD-lite)
     // ============================================
-    if (state.autoCapture.enabled && state.isMicActive && !state.pendingCapture) {
+    if (state.autoCapture.enabled && state.isMicActive && !state.pendingCapture && isLabMode()) {
       const now = Date.now();
       if (now >= (state.autoCapture.cooldownUntil || 0)) {
         const energy = computeEnergy(state.dataArray);
@@ -2120,6 +2120,13 @@
     }
 
     function switchToChallenge() {
+      // force auto off when entering challenge
+      state.autoCapture.enabled = false;
+      elements.autoBtn.textContent = "🤖 Auto Capture: OFF";
+      elements.wordInput.disabled = false;
+      // captureBtn should stay enabled for manual lab, but challenge hides it anyway
+      state.pendingCapture = null;
+      closeLabelModal();
       elements.labSection.classList.add('hidden');
       elements.challengeSection.style.display = 'flex';
 
@@ -2146,6 +2153,10 @@
         fitCanvas(elements.liveCanvas, liveCtx);
         fitCanvas(elements.mysteryCanvas, mysteryCtx);
       });
+    }
+    function isLabMode() {
+      // lab is active when lab section is visible and challenge is not
+      return elements.challengeSection.style.display !== "flex";
     }
   // ============================================
   // DATA PERSISTENCE (localStorage)
