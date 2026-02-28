@@ -1892,7 +1892,8 @@
         analysisText: state.currentTarget?.analysis || "",
         difficulty: state.difficulty,
         points: state.points,
-        history: state.dialogHistory
+        history: state.dialogHistory,
+        currentQuestion: elements.nextQ.textContent
       };
 
       const form = new FormData();
