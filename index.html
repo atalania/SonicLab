@@ -973,6 +973,27 @@
   };
 
   state.pendingCapture = null;
+
+    <div id="labelModal" class="hidden" style="
+  position:fixed; inset:0; background:rgba(0,0,0,.65);
+  display:none; align-items:center; justify-content:center; z-index:9999;">
+  <div style="background:#121212; border:1px solid #333; border-radius:12px; padding:18px; width:min(520px,92vw);">
+    <h3 style="margin:0 0 10px 0; color:#00d4ff;">Captured! What word was that?</h3>
+    <p style="margin:0 0 12px 0; color:#aaa; font-size:.9rem;">
+      If this was accidental, hit Retry or Cancel.
+    </p>
+
+    <input id="modalWordInput" placeholder="Type word (e.g., HELLO)" maxlength="20"
+      style="width:100%; padding:12px 14px; border-radius:8px; border:2px solid #333; background:#222; color:white; font-weight:bold; font-size:16px;" />
+
+    <div style="display:flex; gap:10px; margin-top:14px;">
+      <button id="modalSaveBtn" class="success" style="flex:1;">💾 Save</button>
+      <button id="modalRetryBtn" class="secondary" style="flex:1;">🔁 Retry</button>
+      <button id="modalCancelBtn" class="secondary" style="flex:1;">✖ Cancel</button>
+    </div>
+  </div>
+  </div>
+
     // ============================================
     // DOM
     // ============================================
@@ -1070,6 +1091,7 @@
         elements.startBtn.disabled = true;
         elements.startBtn.innerHTML = '<span>✓ Mic Active</span>';
         elements.captureBtn.disabled = false;
+        elements.autoBtn.disabled = false;
 
         draw();
       } catch (error) {
@@ -2269,7 +2291,7 @@
     elements.nextBtn.onclick = startRound;
     // Enable auto button once mic is active
     // (add this inside initAudio() after mic success, right after you enable captureBtn)
-    elements.autoBtn.disabled = false;
+
 
     // Auto toggle
     elements.autoBtn.onclick = () => {
@@ -2295,6 +2317,8 @@
       state.autoCapture.speechFrames = 0;
       state.autoCapture.silenceFrames = 0;
       state.autoCapture.peak = 0;
+      state.autoCapture.baseline = 0;        // recompute baseline from fresh silence
+      state.autoCapture.cooldownUntil = 0;   // remove any leftover cooldown
     };
 
     // Modal: Retry / Cancel
@@ -2446,25 +2470,6 @@
 
   console.log('🧬 Sonic Fingerprint Lab ready!');
   </script>
-<div id="labelModal" class="hidden" style="
-position:fixed; inset:0; background:rgba(0,0,0,.65);
-display:none; align-items:center; justify-content:center; z-index:9999;">
-<div style="background:#121212; border:1px solid #333; border-radius:12px; padding:18px; width:min(520px,92vw);">
-  <h3 style="margin:0 0 10px 0; color:#00d4ff;">Captured! What word was that?</h3>
-  <p style="margin:0 0 12px 0; color:#aaa; font-size:.9rem;">
-    If this was accidental, hit Retry or Cancel.
-  </p>
-
-  <input id="modalWordInput" placeholder="Type word (e.g., HELLO)" maxlength="20"
-    style="width:100%; padding:12px 14px; border-radius:8px; border:2px solid #333; background:#222; color:white; font-weight:bold; font-size:16px;">
-
-  <div style="display:flex; gap:10px; margin-top:14px;">
-    <button id="modalSaveBtn" class="success" style="flex:1;">💾 Save</button>
-    <button id="modalRetryBtn" class="secondary" style="flex:1;">🔁 Retry</button>
-    <button id="modalCancelBtn" class="secondary" style="flex:1;">✖ Cancel</button>
-  </div>
-</div>
-</div>
 
 </body>
 </html>
