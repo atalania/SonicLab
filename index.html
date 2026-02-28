@@ -825,6 +825,9 @@
           <span>🎤 Start Microphone</span>
           <span class="tooltiptext">Grant microphone access to begin</span>
         </button>
+      
+        <button id="autoBtn" class="secondary" disabled>🤖 Auto Capture: OFF</button>
+      
         <input type="text" id="wordInput" placeholder="Type word (e.g., HELLO)" maxlength="20">
         <button id="captureBtn" disabled class="success">📸 Capture & Analyze</button>
       </div>
@@ -917,6 +920,27 @@
     </div>
   </div>
 
+<div id="labelModal" class="hidden" style="
+  position:fixed; inset:0; background:rgba(0,0,0,.65);
+  display:none; align-items:center; justify-content:center; z-index:9999;">
+  <div style="background:#121212; border:1px solid #333; border-radius:12px; padding:18px; width:min(520px,92vw);">
+    <h3 style="margin:0 0 10px 0; color:#00d4ff;">Captured! What word was that?</h3>
+    <p style="margin:0 0 12px 0; color:#aaa; font-size:.9rem;">If this was accidental, hit Retry or Cancel.</p>
+
+    <input id="modalWordInput" placeholder="Type word (e.g., HELLO)" maxlength="20"
+      style="width:100%; padding:12px 14px; border-radius:8px; border:2px solid #333; background:#222; color:white; font-weight:bold; font-size:16px;" />
+
+    <div style="display:flex; gap:10px; margin-top:14px;">
+      <button id="modalSaveBtn" class="success" style="flex:1;">💾 Save</button>
+      <button id="modalRetryBtn" class="secondary" style="flex:1;">🔁 Retry</button>
+      <button id="modalCancelBtn" class="secondary" style="flex:1;">✖ Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // all your JS
+</script>
   <script>
     // ============================================
     // CONFIGURATION
@@ -956,7 +980,21 @@
     // TTS replay (NEW)
     lastTtsUrl: null,
     lastTtsData: null
+
+    
   };
+    state.autoCapture = {
+    enabled: false,
+    inSpeech: false,
+    speechFrames: 0,
+    silenceFrames: 0,
+    baseline: 0,  // EMA baseline
+    peak: 0,
+    cooldownUntil: 0
+  };
+
+  state.pendingCapture = null;
+
 
     // ============================================
     // DOM
@@ -993,7 +1031,13 @@
       statDifficulty: document.getElementById('stat-difficulty'),
       aiPercent: document.getElementById('ai-percent'),
       aiMeterBar: document.getElementById('ai-meter-bar'),
-      aiMatchText: document.getElementById('ai-match-text')
+      aiMatchText: document.getElementById('ai-match-text'),
+      autoBtn: document.getElementById('autoBtn'),
+      labelModal: document.getElementById('labelModal'),
+      modalWordInput: document.getElementById('modalWordInput'),
+      modalSaveBtn: document.getElementById('modalSaveBtn'),
+      modalRetryBtn: document.getElementById('modalRetryBtn'),
+      modalCancelBtn: document.getElementById('modalCancelBtn'),
     };
 
     const liveCtx = elements.liveCanvas.getContext('2d', { willReadFrequently: true });
@@ -1049,6 +1093,7 @@
         elements.startBtn.disabled = true;
         elements.startBtn.innerHTML = '<span>✓ Mic Active</span>';
         elements.captureBtn.disabled = false;
+        elements.autoBtn.disabled = false;
 
         draw();
       } catch (error) {
@@ -1061,6 +1106,54 @@
     // ============================================
     // VISUALIZATION (DPR SAFE)
     // ============================================
+    function computeEnergy(dataArray) {
+  // Focus on speech-heavy band; avoids rumble/hiss
+      const start = 4;
+      const end = Math.min(120, dataArray.length);
+      let sum = 0;
+      for (let i = start; i < end; i++) sum += dataArray[i];
+      return sum / (end - start);
+    }
+
+    function openLabelModal() {
+      elements.labelModal.classList.remove("hidden");
+      elements.labelModal.style.display = "flex";
+      elements.modalWordInput.value = "";
+      elements.modalWordInput.focus();
+    }
+
+    function closeLabelModal() {
+      elements.labelModal.classList.add("hidden");
+      elements.labelModal.style.display = "none";
+    }
+
+    function createPendingCapture() {
+      const dpr = window.devicePixelRatio || 1;
+      const cssW = elements.liveCanvas.width / dpr;
+      const cssH = elements.liveCanvas.height / dpr;
+
+      const snapCanvas = document.createElement('canvas');
+      snapCanvas.width = cssW;
+      snapCanvas.height = cssH;
+      const snapCtx = snapCanvas.getContext('2d');
+
+      // scale buffer -> css snapshot
+      snapCtx.drawImage(
+        elements.liveCanvas,
+        0, 0, elements.liveCanvas.width, elements.liveCanvas.height,
+        0, 0, cssW, cssH
+      );
+
+      const freqSnapshot = new Uint8Array(state.dataArray);
+
+      state.pendingCapture = {
+        img: snapCanvas,
+        freq: freqSnapshot,
+        timestamp: new Date().toLocaleTimeString()
+      };
+
+      openLabelModal();
+    }
     function draw() {
       if (!state.isMicActive) return;
       requestAnimationFrame(draw);
@@ -1149,7 +1242,69 @@
         const w = Math.max(1, Math.ceil(barWidth));
         ctx.fillRect(xPos, 0, w, scrollCss);
       }
+    // ============================================
+    // AUTO CAPTURE (VAD-lite)
+    // ============================================
+    if (state.autoCapture.enabled && state.isMicActive && !state.pendingCapture && isLabMode()) {
+      const now = Date.now();
+      if (now >= (state.autoCapture.cooldownUntil || 0)) {
+        const energy = computeEnergy(state.dataArray);
 
+        // Update baseline only when not in speech
+        const alpha = 0.05;
+        if (!state.autoCapture.inSpeech) {
+          state.autoCapture.baseline = state.autoCapture.baseline
+            ? (1 - alpha) * state.autoCapture.baseline + alpha * energy
+            : energy;
+        }
+
+        // Threshold tweak knobs (you can tune these later)
+        const threshold = state.autoCapture.baseline + 12;
+        const startNeeded = 6;        // frames above threshold to start
+        const endNeeded = 10;         // frames below threshold to end
+        const minSpeechFrames = 18;   // minimum duration (~300ms at 60fps)
+
+        if (!state.autoCapture.inSpeech) {
+          if (energy > threshold) {
+            state.autoCapture.speechFrames++;
+            if (state.autoCapture.speechFrames >= startNeeded) {
+              state.autoCapture.inSpeech = true;
+              state.autoCapture.peak = energy;
+              state.autoCapture.silenceFrames = 0;
+            }
+          } else {
+            state.autoCapture.speechFrames = 0;
+          }
+        } else {
+          // In speech
+          state.autoCapture.peak = Math.max(state.autoCapture.peak, energy);
+
+          if (energy < threshold) {
+            state.autoCapture.silenceFrames++;
+            if (state.autoCapture.silenceFrames >= endNeeded) {
+              // Speech ended — accept capture if strong enough
+              const strongEnough = state.autoCapture.peak > state.autoCapture.baseline + 18;
+              const longEnough = state.autoCapture.speechFrames >= minSpeechFrames;
+
+              if (strongEnough && longEnough) {
+                createPendingCapture();
+                // cooldown prevents double-captures
+                state.autoCapture.cooldownUntil = Date.now() + 900;
+              }
+
+              // Reset
+              state.autoCapture.inSpeech = false;
+              state.autoCapture.speechFrames = 0;
+              state.autoCapture.silenceFrames = 0;
+              state.autoCapture.peak = 0;
+            }
+          } else {
+            state.autoCapture.silenceFrames = 0;
+            state.autoCapture.speechFrames++;
+          }
+        }
+      }
+    }
       if (state.currentTarget && elements.challengeSection.style.display === "flex") {
         compareLiveToTarget(state.dataArray, state.currentTarget.freq);
       }
@@ -1737,7 +1892,8 @@
         analysisText: state.currentTarget?.analysis || "",
         difficulty: state.difficulty,
         points: state.points,
-        history: state.dialogHistory
+        history: state.dialogHistory,
+        currentQuestion: elements.nextQ.textContent
       };
 
       const form = new FormData();
@@ -1964,6 +2120,13 @@
     }
 
     function switchToChallenge() {
+      // force auto off when entering challenge
+      state.autoCapture.enabled = false;
+      elements.autoBtn.textContent = "🤖 Auto Capture: OFF";
+      elements.wordInput.disabled = false;
+      // captureBtn should stay enabled for manual lab, but challenge hides it anyway
+      state.pendingCapture = null;
+      closeLabelModal();
       elements.labSection.classList.add('hidden');
       elements.challengeSection.style.display = 'flex';
 
@@ -1990,6 +2153,10 @@
         fitCanvas(elements.liveCanvas, liveCtx);
         fitCanvas(elements.mysteryCanvas, mysteryCtx);
       });
+    }
+    function isLabMode() {
+      // lab is active when lab section is visible and challenge is not
+      return elements.challengeSection.style.display !== "flex";
     }
   // ============================================
   // DATA PERSISTENCE (localStorage)
@@ -2136,7 +2303,115 @@
     elements.goToChallengeBtn.onclick = switchToChallenge;
     elements.backToLabBtn.onclick = switchToLab;
     elements.nextBtn.onclick = startRound;
+    // Enable auto button once mic is active
+    // (add this inside initAudio() after mic success, right after you enable captureBtn)
 
+
+    // Auto toggle
+    elements.autoBtn.onclick = () => {
+      state.autoCapture.enabled = !state.autoCapture.enabled;
+
+      elements.autoBtn.textContent = state.autoCapture.enabled
+        ? "🤖 Auto Capture: ON"
+        : "🤖 Auto Capture: OFF";
+
+      // Optional UX: disable manual typing/capture while auto is on
+      elements.wordInput.disabled = state.autoCapture.enabled;
+      elements.captureBtn.disabled = state.autoCapture.enabled ? true : false;
+
+      showStatus(
+        state.autoCapture.enabled
+          ? "Auto Capture ON — speak a word and I’ll freeze it for labeling."
+          : "Auto Capture OFF — use manual Capture & Analyze.",
+        "info"
+      );
+
+      // reset detector state
+      state.autoCapture.inSpeech = false;
+      state.autoCapture.speechFrames = 0;
+      state.autoCapture.silenceFrames = 0;
+      state.autoCapture.peak = 0;
+      state.autoCapture.baseline = 0;        // recompute baseline from fresh silence
+      state.autoCapture.cooldownUntil = 0;   // remove any leftover cooldown
+    };
+
+    // Modal: Retry / Cancel
+    elements.modalRetryBtn.onclick = () => {
+      state.pendingCapture = null;
+      closeLabelModal();
+    };
+
+  elements.modalCancelBtn.onclick = () => {
+    state.pendingCapture = null;
+    state.autoCapture.enabled = false;
+    elements.autoBtn.textContent = "🤖 Auto Capture: OFF";
+    elements.wordInput.disabled = false;
+    elements.captureBtn.disabled = false;
+    closeLabelModal();
+  };
+
+  elements.modalSaveBtn.onclick = async () => {
+  const word = elements.modalWordInput.value.toUpperCase().trim();
+
+  if (!word) return alert("Type the word first!");
+  if (state.library.some(item => item.word === word)) {
+    return alert("That word already exists—use a different one.");
+  }
+
+  const pending = state.pendingCapture;
+  if (!pending) return;
+
+  closeLabelModal();
+
+  showStatus(`Analyzing spectral data for "${word}"...`, 'loading');
+  elements.recordingIndicator.classList.add('active');
+
+  let aiAnalysis = "Analysis unavailable (Offline Mode)";
+
+  try {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        word: word,
+        frequencies: Array.from(pending.freq).slice(0, 40)
+      })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      aiAnalysis = data.analysis;
+      showStatus(`✓ Analysis complete for "${word}"`, 'success');
+      setTimeout(() => showStatus(aiAnalysis, 'analysis'), 500);
+    } else {
+      throw new Error("Server error");
+    }
+  } catch (error) {
+    console.error('Analysis error:', error);
+    showStatus('⚠️ Connection failed. Using offline mode.', 'error');
+  }
+
+  state.library.push({
+    word,
+    img: pending.img,
+    freq: pending.freq,
+    analysis: aiAnalysis,
+    timestamp: pending.timestamp
+  });
+
+  addToGallery(word, pending.img, state.library.length - 1);
+  updateProgress();
+  updateStats();
+
+  elements.recordingIndicator.classList.remove('active');
+
+  if (state.library.length === 1) elements.statsBar.style.display = 'flex';
+  saveToLocalStorage();
+
+  state.pendingCapture = null;
+
+  // Keep auto mode on (optional) — it’ll continue listening after cooldown
+};
     elements.resetLabBtn.onclick = () => {
       if (confirm('This will delete all your captured words and reset progress. Continue?')) {
         clearSavedData();  // Clear localStorage first
@@ -2185,6 +2460,9 @@
     });
 
     console.log('🧬 Sonic Fingerprint Lab initialized');
+
+
+
   // ============================================
   // INITIALIZE - Load saved data on page load
   // ============================================
@@ -2206,5 +2484,6 @@
 
   console.log('🧬 Sonic Fingerprint Lab ready!');
   </script>
+
 </body>
 </html>
