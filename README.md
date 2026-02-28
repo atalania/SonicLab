@@ -1,4 +1,4 @@
-# 🧬 Sonic Fingerprint Lab (VoiceRecogPrototypeGame)
+# 🧬 Sonic Fingerprint Lab 
 
 An interactive, web-based STEM mini-game where students **visualize their voice as a scrolling spectrogram (“waterfall plot”)** and learn how sound patterns relate to **frequency, energy, and speech acoustics**. Players build a small dataset of spoken words, then enter a challenge mode to identify a **mystery pattern** and answer an **AI oral quiz**.
 
