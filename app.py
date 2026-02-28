@@ -1,12 +1,12 @@
 """
-STEM Voice Recognition Game - Backend (Improved Tutor + Deterministic Points)
-============================================================================
-What’s improved vs your current version:
-- /analyze-sound returns a structured “mini lab report” (JSON) + metrics
-- /dialog uses the *current question* from the frontend context (less random)
-- points are computed server-side (consistent, difficulty-scaled)
-- safer JSON parsing + graceful fallbacks
-- keeps your existing routes + Render/Gunicorn compatibility
+STEM Voice Recognition Game - Backend
+====================================
+Features:
+- /analyze-sound returns structured FFT mini-lab reports
+- /dialog handles oral quiz flow with deterministic points
+- safer JSON parsing + fallbacks
+- optional TTS support
+- Render / Gunicorn friendly
 
 ENV VARS:
 - OPENAI_API_KEY (required)
@@ -20,6 +20,7 @@ import base64
 import traceback
 import logging
 import re
+import random
 from typing import Any, Dict, List, Tuple
 from datetime import datetime
 
@@ -56,7 +57,6 @@ if ALLOWED_ORIGINS:
     CORS(app, resources={r"/*": {"origins": ALLOWED_ORIGINS}})
     logger.info(f"CORS enabled for origins: {ALLOWED_ORIGINS}")
 else:
-    # block cross-origin by default
     CORS(app, resources={r"/*": {"origins": []}})
     logger.warning("No CORS origins configured - cross-origin requests blocked")
 
@@ -93,6 +93,59 @@ if not api_key:
 client = OpenAI(api_key=api_key)
 ENABLE_TTS = os.environ.get("ENABLE_TTS", "0") == "1"
 logger.info(f"OpenAI client initialized. TTS enabled: {ENABLE_TTS}")
+
+# =========================================================
+# Prompt Constants
+# =========================================================
+ANALYZE_SYSTEM_PROMPT = """
+You are a careful physics and signal-processing tutor.
+
+You must output STRICT JSON only. No markdown, no code fences, no extra text.
+
+Important constraints:
+- FFT energy distribution and estimated pitch are different measurements.
+- Do not infer vocal pitch from FFT bin position alone.
+- Do not equate low-frequency energy concentration with low vocal pitch.
+- A vowel can show strong low-frequency energy even when spoken at a relatively high pitch.
+- Use estimated_pitch_hz only if pitch_clarity is reasonably strong.
+- If the evidence is limited, say what the data suggests, not what it proves.
+""".strip()
+
+QUIZ_SYSTEM_PROMPT = """
+You are an interactive physics and signal-processing tutor conducting an oral quiz.
+
+You must return STRICT JSON only in this schema:
+{
+  "reply": string,
+  "score": number,
+  "newDifficulty": integer,
+  "nextQuestion": string
+}
+
+Rules for reply:
+- Use exactly 3 bullet points labeled:
+  Correct:
+  Missing:
+  Next step:
+- Be concise, specific, and educational.
+
+Scoring rubric:
+- 1.0 = correct, clear, and uses appropriate terms
+- 0.7 to 0.9 = mostly correct with minor gaps
+- 0.4 to 0.6 = partially correct or vague
+- 0.0 to 0.3 = incorrect, confused, or off-topic
+
+Difficulty:
+- Increase if score >= 0.75
+- Decrease if score <= 0.35
+- Otherwise keep the same
+
+Scientific accuracy rules:
+- Distinguish pitch, loudness, resonance, and noise.
+- Do not imply louder speech automatically means higher pitch.
+- Do not treat FFT bin position alone as proof of exact vocal pitch.
+- If the student's idea is directionally right but imprecise, acknowledge that and correct it.
+""".strip()
 
 # =========================================================
 # Helpers
@@ -153,22 +206,28 @@ def safe_parse_json(s: str) -> Tuple[bool, Dict[str, Any]]:
     except Exception:
         return False, {}
 
+
 def is_idk(text: str) -> bool:
     t = (text or "").strip().lower()
-    # remove punctuation-ish
     t = re.sub(r"[^a-z0-9\s']", " ", t)
     t = re.sub(r"\s+", " ", t).strip()
 
     phrases = [
         "i don't know", "i dont know", "idk", "no idea", "not sure",
-        "i'm not sure", "im not sure", "i forgot", "can't remember", "cant remember",
-        "i dunno", "dont know"
+        "i'm not sure", "im not sure", "i forgot", "can't remember",
+        "cant remember", "i dunno", "dont know"
     ]
     return any(p in t for p in phrases)
+
 # =========================================================
 # Spectral Metrics
 # =========================================================
-def analyze_frequency_spectrum(freq_values: List[int], word: str, sample_rate: float = 44100, fft_size: int = 1024) -> Dict[str, Any]:
+def analyze_frequency_spectrum(
+    freq_values: List[int],
+    word: str,
+    sample_rate: float = 44100,
+    fft_size: int = 1024
+) -> Dict[str, Any]:
     if not freq_values:
         return {
             "dominant_bin": 0,
@@ -199,8 +258,8 @@ def analyze_frequency_spectrum(freq_values: List[int], word: str, sample_rate: f
     total_bins = len(freq_values)
 
     low_energy = sum(freq_values[: int(total_bins * 0.33)])
-    mid_energy = sum(freq_values[int(total_bins * 0.33) : int(total_bins * 0.66)])
-    high_energy = sum(freq_values[int(total_bins * 0.66) :])
+    mid_energy = sum(freq_values[int(total_bins * 0.33): int(total_bins * 0.66)])
+    high_energy = sum(freq_values[int(total_bins * 0.66):])
 
     total_energy = low_energy + mid_energy + high_energy
     if total_energy > 0:
@@ -212,15 +271,12 @@ def analyze_frequency_spectrum(freq_values: List[int], word: str, sample_rate: f
     else:
         energy_distribution = {"low": 0, "mid": 0, "high": 0}
 
-    # peakiness = max / mean (how “spiky” vs “flat/noisy”)
     peakiness = round(max_amplitude / (avg_amplitude + 1e-6), 2)
 
-    # spectral centroid (brightness proxy)
     weighted_sum = sum(i * v for i, v in enumerate(freq_values))
     total = sum(freq_values) + 1e-6
     centroid = weighted_sum / total
 
-    # spectral spread (bandwidth proxy)
     spread = (sum(((i - centroid) ** 2) * v for i, v in enumerate(freq_values)) / total) ** 0.5
 
     return {
@@ -238,47 +294,54 @@ def analyze_frequency_spectrum(freq_values: List[int], word: str, sample_rate: f
 
 def generate_lab_report_prompt(word: str, freq_values: List[int], m: Dict[str, Any]) -> str:
     return f"""
-    You are a physics + signal-processing tutor.
-    Do not infer exact vocal pitch from FFT bin position alone.
+Analyze this speech snapshot conservatively for a high-school STEM learner.
 
-    Word spoken: "{word}"
+The FFT magnitudes describe spectral shape.
+The estimated pitch value is a separate fundamental-frequency estimate.
+Use both carefully.
+
+Word spoken: "{word}"
 
 FFT magnitudes (0-255), first 40 bins:
 {freq_values[:40]}
 
 Computed metrics:
-- Dominant bin: {m['dominant_bin']} (~{m['dominant_hz']} Hz, {m['dominant_region']})
-- Avg amplitude: {m['avg_amplitude']}
-- Max amplitude: {m['max_amplitude']}
+- Dominant FFT bin: {m['dominant_bin']}
+- Approx dominant FFT frequency: {m['dominant_hz']} Hz
+- Dominant FFT region: {m['dominant_region']}
+- Average amplitude: {m['avg_amplitude']}
+- Maximum amplitude: {m['max_amplitude']}
 - Peakiness (max/avg): {m['peakiness']}
-- Spectral centroid (brightness): {m['spectral_centroid']}
-- Spectral spread (bandwidth): {m['spectral_spread']}
-- Energy distribution: low={m['energy_distribution']['low']}% mid={m['energy_distribution']['mid']}% high={m['energy_distribution']['high']}%
+- Spectral centroid: {m['spectral_centroid']}
+- Spectral spread: {m['spectral_spread']}
+- Energy distribution: low={m['energy_distribution']['low']}%, mid={m['energy_distribution']['mid']}%, high={m['energy_distribution']['high']}%
+- Estimated fundamental frequency (pitch): {m.get('estimated_pitch_hz', 0)} Hz
+- Pitch clarity/confidence: {m.get('pitch_clarity', 0)}
 
-Return STRICT JSON:
+Write a mini lab report in STRICT JSON with this exact schema:
 {{
-  "summary": "1 sentence in plain language",
-  "what_it_means": "1–2 sentences linking metrics to spectral energy distribution, resonance, and tonal vs noisy characteristics. Do not claim exact pitch from FFT bin position alone.",
-  "try_this": "1 short experiment the student can do (e.g., whisper, pitch up, louder)",
+  "summary": "One sentence describing the spectrum shape and, if pitch clarity is decent, a cautious statement about estimated pitch.",
+  "what_it_means": "One or two sentences about resonance, vowel-like structure, tonal vs noisy sound, and how pitch estimate differs from FFT energy concentration.",
+  "try_this": "One short experiment the student can try next.",
   "vocab": {{
-    "term": "one key term like 'harmonics' or 'formants' or 'spectral centroid'",
-    "definition": "1 sentence definition"
+    "term": "One useful signal-processing term",
+    "definition": "One sentence definition"
   }}
 }}
 
-No fluff. No praise. No 'Great question'. Just useful info.
+Rules:
+- Do not say low-frequency FFT energy automatically means low vocal pitch.
+- Treat estimated_pitch_hz as the pitch estimate, not dominant FFT bin.
+- If pitch clarity is below 0.35, say the pitch estimate is uncertain.
+- Prefer cautious wording like 'suggests', 'appears', or 'is consistent with'.
+- Keep the language concise and accurate.
+- No praise, no filler, no greetings.
 """.strip()
-
 
 # =========================================================
 # Deterministic Points
 # =========================================================
 def compute_points(score: float, difficulty: int) -> int:
-    """
-    Deterministic, explainable scoring:
-    - base grows with difficulty
-    - multiplier grows with answer quality
-    """
     base_map = {1: 2, 2: 3, 3: 4, 4: 6, 5: 8}
     base = base_map.get(difficulty, 2)
 
@@ -296,38 +359,35 @@ def compute_points(score: float, difficulty: int) -> int:
 
 
 def get_next_question(difficulty: int) -> str:
-    import random
-
     DIFFICULTY_QUESTIONS = {
         1: [
             "What happens to the amplitude when you speak louder?",
-            "Which frequency range (low, mid, or high) has the most energy in this pattern?",
-            "If you spoke softer, would the amplitude increase or decrease?",
+            "Which measured frequency range contains the most energy in this spectrum?",
+            "Does this spectrum look more tonal or more noise-like?",
         ],
         2: [
-            "Explain why vowels typically have energy in the mid-frequency range.",
-            "What does it mean when energy is concentrated in a narrow range vs spread out?",
-            "How would the spectrum change if you spoke the same word at a higher pitch?",
+            "What does it mean if energy is concentrated in a narrow frequency range?",
+            "How might a whisper change the spectrum compared with voiced speech?",
+            "Why do vowel sounds often show strong resonant structure?",
         ],
         3: [
-            "Describe the relationship between the fundamental frequency and harmonics in speech.",
+            "What does peakiness suggest about tonal versus noisy sounds?",
             "Why can two people saying the same word produce different spectral patterns?",
-            "What acoustic properties might make this word’s signature unique?",
+            "How can resonance shape the spectrum of a vowel?",
         ],
         4: [
-            "Compare voiced sounds (vowels) vs unvoiced sounds ('s', 'f') in the spectrum.",
+            "How do voiced sounds differ from unvoiced sounds in spectral characteristics?",
             "How do formants help distinguish vowel sounds?",
             "Why does the FFT show discrete bins instead of a continuous spectrum?",
         ],
         5: [
             "How would a low-pass filter affect speech intelligibility based on the spectrum?",
-            "Design an experiment to test whether spectral features alone can identify speakers.",
-            "Explain the time–frequency resolution trade-off in the Short-Time Fourier Transform.",
+            "What spectral features might help distinguish one speaker from another?",
+            "Explain the time-frequency resolution trade-off in spectral analysis.",
         ],
     }
     questions = DIFFICULTY_QUESTIONS.get(difficulty, DIFFICULTY_QUESTIONS[1])
     return random.choice(questions)
-
 
 # =========================================================
 # Routes
@@ -338,7 +398,7 @@ def health_check():
         {
             "status": "online",
             "service": "STEM Voice Recognition Lab",
-            "version": "3.0",
+            "version": "4.0",
             "timestamp": datetime.utcnow().isoformat(),
         }
     ), 200
@@ -347,20 +407,6 @@ def health_check():
 @app.route("/analyze-sound", methods=["POST"])
 @limiter.limit("60 per minute")
 def analyze_sound():
-    """
-    Request JSON:
-    {
-        "word": str,
-        "frequencies": List[int]
-    }
-
-    Response:
-    {
-        "metrics": {...},
-        "report": {...},   # structured mini lab report
-        "analysis": str    # fallback human-readable string
-    }
-    """
     try:
         data = safe_json()
         word = truncate(data.get("word", "Unknown"), 64).upper()
@@ -372,23 +418,20 @@ def analyze_sound():
 
         sample_rate = clamp_float(data.get("sampleRate", 44100), 8000, 96000, 44100)
         fft_size = clamp_int(data.get("fftSize", 1024), 256, 8192, 1024)
+        estimated_pitch_hz = clamp_float(data.get("estimatedPitchHz", 0), 0, 5000, 0)
+        pitch_clarity = clamp_float(data.get("pitchClarity", 0), 0, 1, 0)
 
         metrics = analyze_frequency_spectrum(freq_values, word, sample_rate, fft_size)
+        metrics["estimated_pitch_hz"] = round(estimated_pitch_hz, 2)
+        metrics["pitch_clarity"] = round(pitch_clarity, 2)
         prompt = generate_lab_report_prompt(word, freq_values, metrics)
 
         completion = client.chat.completions.create(
             model="gpt-4o-mini",
-            temperature=0.25,
-            max_tokens=350,
+            temperature=0.2,
+            max_tokens=320,
             messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a physics + signal-processing tutor. "
-                        "You output STRICT JSON only, no markdown."
-                        "Do not infer exact vocal pitch from FFT bin position alone."
-                    ),
-                },
+                {"role": "system", "content": ANALYZE_SYSTEM_PROMPT},
                 {"role": "user", "content": prompt},
             ],
         )
@@ -397,23 +440,37 @@ def analyze_sound():
         ok, report = safe_parse_json(raw)
 
         if not ok:
-            # fallback: simple readable text
+            pitch_hz = metrics.get("estimated_pitch_hz", 0)
+            pitch_clarity = metrics.get("pitch_clarity", 0)
+
+            if pitch_hz > 0 and pitch_clarity >= 0.35:
+                pitch_text = f"The pitch estimate is about {pitch_hz} Hz with moderate confidence."
+            else:
+                pitch_text = "The pitch estimate is uncertain from this snapshot."
+
             report = {
-                "summary": f"Dominant energy is in {metrics['dominant_region']} with peak bin {metrics['dominant_bin']}.",
-                "what_it_means": (
-                    f"Energy split is low={metrics['energy_distribution']['low']}%, "
-                    f"mid={metrics['energy_distribution']['mid']}%, high={metrics['energy_distribution']['high']}%. "
-                    f"Peakiness {metrics['peakiness']} suggests {'more tonal (harmonic)' if metrics['peakiness'] > 2.0 else 'more noise-like'} content."
+                "summary": (
+                    f"The measured spectrum shows much of its energy in the {metrics['dominant_region']} "
+                    f"with a strongest FFT peak near {metrics['dominant_hz']} Hz. {pitch_text}"
                 ),
-                "try_this": "Try whispering the same word and compare how the spectrum becomes more high-frequency/noise-heavy.",
-                "vocab": {"term": "spectral centroid", "definition": "A number that estimates how ‘bright’ a sound is by weighting higher frequencies more."},
+                "what_it_means": (
+                    f"The energy split is low={metrics['energy_distribution']['low']}%, "
+                    f"mid={metrics['energy_distribution']['mid']}%, high={metrics['energy_distribution']['high']}%. "
+                    f"This suggests the sound is {'more tonal' if metrics['peakiness'] > 2.0 else 'more noise-like'}, "
+                    f"and the pitch estimate should be interpreted separately from where FFT energy is concentrated."
+                ),
+                "try_this": "Try saying the same vowel at a clearly higher and then lower pitch, and compare both the pitch estimate and the spectrum shape.",
+                "vocab": {
+                    "term": "fundamental frequency",
+                    "definition": "The fundamental frequency is the main repeating frequency of a voiced sound and is closely related to perceived pitch."
+                },
             }
 
         analysis_text = (
-            f"{report.get('summary','')}\n"
-            f"{report.get('what_it_means','')}\n"
-            f"Try this: {report.get('try_this','')}\n"
-            f"Vocab — {report.get('vocab',{}).get('term','')}: {report.get('vocab',{}).get('definition','')}"
+            f"{report.get('summary', '')}\n"
+            f"{report.get('what_it_means', '')}\n"
+            f"Try this: {report.get('try_this', '')}\n"
+            f"Vocab — {report.get('vocab', {}).get('term', '')}: {report.get('vocab', {}).get('definition', '')}"
         ).strip()
 
         return jsonify(
@@ -432,30 +489,6 @@ def analyze_sound():
 @app.route("/dialog", methods=["POST"])
 @limiter.limit("15 per minute")
 def dialog():
-    """
-    Multipart form-data:
-    - audio: file
-    - context: JSON string
-
-    Frontend context should include (recommended):
-    - difficulty, points, targetWord, analysisText, fft (optional)
-    - history (optional)
-    - currentQuestion (IMPORTANT: send elements.nextQ.textContent)
-
-    Response JSON:
-    {
-        "transcript": str,
-        "reply": str,
-        "score": float,
-        "pointsEarned": int,
-        "pointsReason": str,
-        "totalPoints": int,
-        "difficulty": int,
-        "nextQuestion": str,
-        "ttsAudioBase64": str (optional),
-        "ttsMime": str (optional)
-    }
-    """
     try:
         if "audio" not in request.files:
             return jsonify({"error": "Missing audio file (field name must be 'audio')"}), 400
@@ -469,7 +502,6 @@ def dialog():
         except json.JSONDecodeError:
             ctx = {}
 
-        # ✅ Extract context ONCE with safe defaults (always defined)
         difficulty = clamp_int(ctx.get("difficulty", 1), 1, 5, 1)
         total_points = clamp_int(ctx.get("points", 0), 0, 100000, 0)
         target_word = truncate(ctx.get("targetWord", ""), 64)
@@ -486,7 +518,6 @@ def dialog():
         if not isinstance(history, list):
             history = []
 
-        # Transcribe
         try:
             transcript_obj = client.audio.transcriptions.create(
                 model="whisper-1",
@@ -499,36 +530,51 @@ def dialog():
 
         if is_idk(transcript):
             teach_prompt = f"""
-        You are a Physics + Signal Processing tutor. The student said they don't know.
+You are a physics and signal-processing tutor.
+The student said they do not know the answer.
 
-        Current difficulty: {difficulty}
-        Question: "{current_question}"
+Current difficulty: {difficulty}
+Question: "{current_question}"
 
-        Give a short walkthrough that teaches the correct answer:
-        - Step 1: Restate the question in simpler words.
-        - Step 2: Explain the key concept needed.
-        - Step 3: Apply it to a concrete example related to speaking (louder/softer, higher pitch, whisper).
-        - Step 4: Give a one-sentence 'rule of thumb'.
-        - Step 5: Ask ONE quick check-for-understanding question.
+Give a short teaching response in STRICT JSON:
+{{
+  "reply": string,
+  "score": number,
+  "newDifficulty": integer,
+  "nextQuestion": string
+}}
 
-        Keep it clear and high-school friendly. No fluff.
-        Return STRICT JSON:
-        {{
-        "reply": string,
-        "score": number,
-        "newDifficulty": integer,
-        "nextQuestion": string
-        }}
-        Set score to 0.0–0.2 since they didn’t answer.
-        Set newDifficulty to max(1, {difficulty} - 1)
-        """
+Requirements for "reply":
+- Use 5 short steps labeled exactly:
+  Step 1:
+  Step 2:
+  Step 3:
+  Step 4:
+  Step 5:
+- Step 1: Restate the question simply.
+- Step 2: Explain the key concept.
+- Step 3: Give a speaking-related example.
+- Step 4: Give one rule of thumb.
+- Step 5: Ask one quick check-for-understanding question.
+
+Scientific rules:
+- Distinguish pitch (fundamental frequency) from loudness (amplitude).
+- Do not imply louder speech automatically means higher pitch.
+- Do not claim an FFT snapshot alone proves exact pitch.
+- Keep it high-school friendly and concise.
+
+Set:
+- score between 0.0 and 0.2
+- newDifficulty to max(1, {difficulty} - 1)
+""".strip()
+
             completion = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": "You output STRICT JSON only. No markdown."},
                     {"role": "user", "content": teach_prompt},
                 ],
-                temperature=0.3,
+                temperature=0.25,
                 max_tokens=420,
             )
 
@@ -536,71 +582,51 @@ def dialog():
             ok, payload = safe_parse_json(raw)
             if not ok:
                 payload = {
-                    "reply": "Step 1: ...", "score": 0.1,
-                    "newDifficulty": max(1, difficulty-1),
-                    "nextQuestion": get_next_question(max(1, difficulty-1)),
+                    "reply": (
+                        "Step 1: The question is asking about a sound feature in simple terms.\n"
+                        "Step 2: The key idea is that pitch, loudness, and spectrum are related but not identical.\n"
+                        "Step 3: For example, speaking louder usually raises amplitude, but not necessarily pitch.\n"
+                        "Step 4: Rule of thumb: pitch relates to frequency, loudness relates to amplitude.\n"
+                        "Step 5: What usually changes first when you speak louder: amplitude or pitch?"
+                    ),
+                    "score": 0.1,
+                    "newDifficulty": max(1, difficulty - 1),
+                    "nextQuestion": get_next_question(max(1, difficulty - 1)),
                 }
 
             score = clamp_float(payload.get("score", 0.1), 0.0, 1.0, 0.1)
-            new_difficulty = clamp_int(payload.get("newDifficulty", max(1, difficulty-1)), 1, 5, max(1, difficulty-1))
+            new_difficulty = clamp_int(
+                payload.get("newDifficulty", max(1, difficulty - 1)),
+                1, 5, max(1, difficulty - 1)
+            )
             reply = truncate(payload.get("reply", ""), 2000)
             next_question = truncate(payload.get("nextQuestion", get_next_question(new_difficulty)), 500)
-
-            points_earned = 0  # since they said IDK
-            total_points += points_earned
 
             response_data = {
                 "transcript": transcript,
                 "reply": reply,
                 "score": score,
-                "pointsEarned": points_earned,
+                "pointsEarned": 0,
                 "pointsReason": "Student said IDK -> teaching mode (0 pts)",
                 "totalPoints": total_points,
                 "difficulty": new_difficulty,
                 "nextQuestion": next_question,
             }
-            # (TTS same as usual)
+
+            if ENABLE_TTS and reply:
+                try:
+                    speech_response = client.audio.speech.create(
+                        model="tts-1",
+                        voice="nova",
+                        input=f"{reply}\nNext question: {next_question}",
+                    )
+                    audio_bytes = speech_response.read()
+                    response_data["ttsAudioBase64"] = base64.b64encode(audio_bytes).decode("utf-8")
+                    response_data["ttsMime"] = "audio/mpeg"
+                except Exception as e:
+                    logger.error(f"TTS generation failed in IDK path: {e}")
+
             return jsonify(response_data)
-
- 
-
-        fft = ctx.get("fft")
-        fft_preview = fft[:40] if isinstance(fft, list) else None
-
-        history = ctx.get("history", [])
-        if not isinstance(history, list):
-            history = []
-
-        # Tutor prompt: structured feedback
-        system_prompt = """
-You are an interactive Physics and Signal Processing tutor conducting an oral quiz.
-
-You MUST return STRICT JSON (no markdown) in this schema:
-{
-  "reply": string,          // 3 bullets labeled: Correct / Missing / Next step
-  "score": number,          // 0.0 to 1.0
-  "newDifficulty": integer, // 1-5
-  "nextQuestion": string    // One clear follow-up question
-}
-
-Scoring rubric:
-- 1.0: Correct + clear explanation + uses correct terms
-- 0.7-0.9: Correct with minor gaps
-- 0.4-0.6: Partially correct or vague
-- 0.0-0.3: Incorrect or off-topic
-
-Difficulty adjustment:
-- Increase if score >= 0.75
-- Decrease if score <= 0.35
-- Else keep the same
-
-Style rules:
-- Reply MUST be 3 bullet points exactly:
-  - "Correct: ..."
-  - "Missing: ..."
-  - "Next step: ..."
-- Be concise, specific, and educational.
-""".strip()
 
         ctx_summary = {
             "difficulty": difficulty,
@@ -611,9 +637,8 @@ Style rules:
             "questionAsked": current_question or None,
         }
 
-        messages: List[Dict[str, str]] = [{"role": "system", "content": system_prompt}]
+        messages: List[Dict[str, str]] = [{"role": "system", "content": QUIZ_SYSTEM_PROMPT}]
 
-        # include recent history
         for turn in history[-8:]:
             if isinstance(turn, dict) and "role" in turn and "content" in turn:
                 role = "user" if turn["role"] == "user" else "assistant"
@@ -624,7 +649,7 @@ Style rules:
                 "role": "user",
                 "content": f"""Context: {json.dumps(ctx_summary, indent=2)}
 
-Question asked (if present): "{current_question}"
+Question asked: "{current_question}"
 
 Student's spoken answer: "{transcript}"
 
@@ -636,17 +661,20 @@ Evaluate the answer and respond with STRICT JSON.
         completion = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=messages,
-            temperature=0.35,
+            temperature=0.3,
             max_tokens=380,
         )
 
         raw = (completion.choices[0].message.content or "").strip()
         ok, payload = safe_parse_json(raw)
 
-        # Fallback if model returns non-JSON
         if not ok:
             payload = {
-                "reply": f"Correct: You responded to the question.\nMissing: Add one specific physics detail (amplitude, frequency range, harmonics).\nNext step: Try answering with one metric and what it implies.",
+                "reply": (
+                    "Correct: You attempted an answer related to the question.\n"
+                    "Missing: Add one more precise physics or signal-processing detail.\n"
+                    "Next step: Use one specific term such as amplitude, resonance, or harmonics."
+                ),
                 "score": 0.5,
                 "newDifficulty": difficulty,
                 "nextQuestion": get_next_question(difficulty),
@@ -657,7 +685,6 @@ Evaluate the answer and respond with STRICT JSON.
         reply = truncate(payload.get("reply", "Correct: —\nMissing: —\nNext step: —"), 2000)
         next_question = truncate(payload.get("nextQuestion", get_next_question(new_difficulty)), 500)
 
-        # Deterministic points
         points_earned = compute_points(score, difficulty)
         total_points += points_earned
         points_reason = f"diff={difficulty} score={score:.2f} -> +{points_earned}"
@@ -673,7 +700,6 @@ Evaluate the answer and respond with STRICT JSON.
             "nextQuestion": next_question,
         }
 
-        # TTS (optional)
         if ENABLE_TTS and reply:
             try:
                 speech_response = client.audio.speech.create(
