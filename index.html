@@ -1,0 +1,2210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sonic Fingerprint AI Lab</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+      color: white;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+    }
+
+    #container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+      width: 100%;
+    }
+
+    .header h1 {
+      font-size: clamp(1.8rem, 5vw, 2.8rem);
+      margin: 10px 0;
+      text-shadow: 0 0 20px rgba(0, 212, 255, 0.6);
+      background: linear-gradient(90deg, #00d4ff, #00ff88);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header p {
+      color: #aaa;
+      font-size: 1rem;
+      margin: 5px 0;
+    }
+
+    .stats-bar {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin: 20px 0;
+      padding: 15px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 10px;
+      border: 1px solid #333;
+    }
+
+    .stat-item {
+      text-align: center;
+      padding: 10px 20px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      border: 1px solid #444;
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .stat-value {
+      font-size: 1.8rem;
+      font-weight: bold;
+      color: #00d4ff;
+      margin-top: 5px;
+    }
+
+    .canvas-container {
+      position: relative;
+      width: 100%;
+      max-width: 700px;
+      margin: 20px 0;
+      height: 220px;
+    }
+
+    canvas {
+      border: 2px solid #00d4ff;
+      background: #000;
+      border-radius: 12px;
+      box-shadow: 0 0 30px rgba(0, 212, 255, 0.3);
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .canvas-label {
+      position: absolute;
+      top: 10px;
+      left: 15px;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 5px 12px;
+      border-radius: 5px;
+      font-size: 0.85rem;
+      color: #00d4ff;
+      border: 1px solid #00d4ff;
+    }
+
+    .recording-indicator {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      background: #ff0044;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      animation: pulse 1.5s infinite;
+      display: none;
+    }
+
+    .recording-indicator.active { display: block; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 15px;
+      margin: 20px 0;
+      background: #1a1a1a;
+      padding: 20px;
+      border-radius: 12px;
+      border: 1px solid #333;
+      width: 100%;
+      max-width: 700px;
+      min-height: 120px;
+    }
+
+    .captured-item {
+      position: relative;
+      text-align: center;
+      opacity: 0;
+      animation: fadeIn 0.5s forwards;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #444;
+      transition: transform 0.2s, box-shadow 0.2s;
+      cursor: pointer;
+    }
+
+    .captured-item:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 5px 20px rgba(0, 212, 255, 0.3);
+      border-color: #00d4ff;
+    }
+
+    .captured-item canvas {
+      border: 1px solid #555;
+      width: 100%;
+      height: 70px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+    }
+
+    .captured-item .word-label {
+      font-weight: bold;
+      color: #00d4ff;
+      font-size: 0.95rem;
+      margin-bottom: 5px;
+    }
+
+    .captured-item .timestamp {
+      font-size: 0.7rem;
+      color: #666;
+    }
+
+    .delete-btn{
+      position:absolute;
+      top:6px; right:6px;
+      width:22px; height:22px;
+      border-radius:50%;
+      border:1px solid #555;
+      background: rgba(0,0,0,.65);
+      color:#fff;
+      font-weight:900;
+      line-height:20px;
+      cursor:pointer;
+      z-index:5;
+      padding:0;
+    }
+    .delete-btn:hover{ border-color:#ff4444; color:#ff4444; }
+
+    .controls {
+      margin: 20px 0;
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+      width: 100%;
+      max-width: 700px;
+    }
+
+    button {
+      padding: 14px 28px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      background: linear-gradient(135deg, #00d4ff, #0099cc);
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      color: #fff;
+      transition: all 0.3s;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      box-shadow: 0 4px 15px rgba(0, 212, 255, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+
+    button::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.3);
+      transform: translate(-50%, -50%);
+      transition: width 0.6s, height 0.6s;
+    }
+
+    button:hover::before {
+      width: 300px;
+      height: 300px;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 25px rgba(0, 212, 255, 0.5);
+    }
+
+    button:active:not(:disabled) { transform: translateY(-1px); }
+
+    button:disabled {
+      background: #333;
+      color: #666;
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+    }
+
+    button.secondary {
+      background: linear-gradient(135deg, #444, #333);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    button.success { background: linear-gradient(135deg, #00ff88, #00cc66); }
+
+    input {
+      padding: 14px 20px;
+      border-radius: 8px;
+      border: 2px solid #333;
+      background: #222;
+      color: white;
+      min-width: 200px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 1rem;
+      transition: border-color 0.3s;
+    }
+
+    input:focus {
+      border-color: #00d4ff;
+      outline: none;
+      box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
+    }
+
+    .ai-feedback {
+      background: linear-gradient(135deg, rgba(0, 32, 0, 0.95), rgba(0, 64, 32, 0.95));
+      border-left: 4px solid #00ff88;
+      padding: 20px;
+      margin: 20px 0;
+      font-family: 'Courier New', monospace;
+      color: #00ff88;
+      width: 100%;
+      max-width: 700px;
+      min-height: 60px;
+      text-align: left;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      border-radius: 0 8px 8px 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .ai-feedback::before {
+      content: '🤖 AI ANALYSIS';
+      position: absolute;
+      top: 8px;
+      right: 15px;
+      font-size: 0.7rem;
+      opacity: 0.5;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    .ai-feedback.loading::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 3px;
+      background: #00ff88;
+      animation: loading 1.5s infinite;
+    }
+
+    @keyframes loading {
+      0% { width: 0%; }
+      50% { width: 100%; }
+      100% { width: 0%; }
+    }
+
+    #challenge-section {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      animation: slideIn 0.5s;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    #challenge-ui {
+      background: linear-gradient(135deg, #1a1a2e, #2a2a3e);
+      padding: 30px;
+      border-radius: 15px;
+      border: 2px solid #444;
+      max-width: 700px;
+      width: 100%;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    .challenge-header {
+      text-align: center;
+      margin-bottom: 25px;
+    }
+
+    .challenge-header h2 {
+      color: #ff00d4;
+      margin: 0 0 10px 0;
+      font-size: 2rem;
+      text-shadow: 0 0 15px rgba(255, 0, 212, 0.5);
+    }
+
+    .ai-status {
+      background: linear-gradient(135deg, #0a0a0a, #1a1a1a);
+      padding: 20px;
+      border-radius: 10px;
+      margin: 20px 0;
+      border: 1px solid #333;
+    }
+
+    .meter-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.9rem;
+      color: #888;
+      margin-bottom: 10px;
+    }
+
+    .meter-percentage {
+      font-size: 1.5rem;
+      color: white;
+      font-weight: bold;
+    }
+
+    .meter-bg {
+      background: #222;
+      width: 100%;
+      height: 12px;
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5);
+    }
+
+    #ai-meter-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #00d4ff, #00ff88, #00ff88);
+      width: 0%;
+      transition: width 0.3s ease-out;
+      box-shadow: 0 0 10px currentColor;
+    }
+
+    .meter-status {
+      display: block;
+      margin-top: 8px;
+      color: #555;
+      font-size: 0.85rem;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .dialog-panel {
+      margin-top: 20px;
+      padding: 20px;
+      border: 1px solid #333;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #0a0a0a, #1a1a1a);
+    }
+
+    .dialog-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+    }
+
+    .dialog-stats {
+      font-size: 0.9rem;
+      color: #888;
+      flex: 1;
+    }
+
+    .dialog-stats b { color: #fff; }
+
+    #talkBtn {
+      min-width: 140px;
+      padding: 12px 20px;
+      background: linear-gradient(135deg, #00ff88, #00cc66);
+      font-size: 0.95rem;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    #talkBtn:active:not(:disabled) {
+      background: linear-gradient(135deg, #00cc66, #009944);
+    }
+
+    .dialog-transcript {
+      margin-top: 15px;
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    .dialog-line {
+      margin-bottom: 12px;
+      padding: 10px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .dialog-line-label {
+      color: #666;
+      font-size: 0.8rem;
+      margin-bottom: 4px;
+    }
+
+    .dialog-line-content { color: #ddd; }
+
+    #options-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin: 20px 0;
+    }
+
+    #options-container button {
+      background: linear-gradient(135deg, #333, #222);
+      padding: 16px;
+      font-size: 1.1rem;
+    }
+
+    #options-container button:hover:not(:disabled) {
+      background: linear-gradient(135deg, #444, #333);
+    }
+
+    .feedback {
+      margin-top: 20px;
+      font-size: 1.4rem;
+      font-weight: bold;
+      min-height: 2em;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+      text-align: center;
+      padding: 15px;
+      border-radius: 8px;
+      transition: all 0.3s;
+    }
+
+    .feedback.correct {
+      color: #00ff88;
+      background: rgba(0, 255, 136, 0.1);
+      border: 1px solid #00ff88;
+    }
+
+    .feedback.incorrect {
+      color: #ff4444;
+      background: rgba(255, 68, 68, 0.1);
+      border: 1px solid #ff4444;
+    }
+
+    .hint-box {
+      background: linear-gradient(135deg, #1a1a00, #2a2a00);
+      border: 1px dashed #666;
+      padding: 15px;
+      margin: 15px 0;
+      font-size: 0.9rem;
+      color: #ffaa00;
+      border-radius: 8px;
+      line-height: 1.5;
+    }
+
+    .hidden { display: none !important; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .progress-section {
+      width: 100%;
+      max-width: 700px;
+      margin: 20px 0;
+    }
+
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .progress-label {
+      color: #888;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .progress-count {
+      color: white;
+      font-weight: bold;
+      font-size: 1.1rem;
+    }
+
+    .progress-bar-container {
+      width: 100%;
+      height: 8px;
+      background: #222;
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5);
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #00d4ff, #00ff88);
+      width: 0%;
+      transition: width 0.5s ease-out;
+      box-shadow: 0 0 10px currentColor;
+    }
+
+/* ============================================ */
+/* MOBILE & RESPONSIVE - COMPLETE */
+/* ============================================ */
+  @media (max-width: 768px) {
+    /* Smaller canvas for mobile */
+    .canvas-container {
+      height: 150px !important;
+      max-width: 100%;
+      margin: 15px 0;
+    }
+    
+    #liveCanvas, #mysteryCanvas {
+      height: 150px;
+    }
+
+    #container {
+      padding: 12px;
+    }
+
+    .header {
+      margin-bottom: 15px;
+    }
+
+    .header h1 {
+      font-size: clamp(1.5rem, 4vw, 2rem);
+    }
+
+    .header p {
+      font-size: 0.9rem;
+    }
+
+    /* AI feedback more readable */
+    .ai-feedback {
+      padding: 15px;
+      font-size: 0.85rem;
+      margin: 15px 0;
+    }
+
+    /* Button sizing */
+    .controls {
+      flex-direction: column;
+      gap: 10px;
+      max-width: 100%;
+    }
+
+    input, button {
+      width: 100%;
+      padding: 14px 16px;
+    }
+
+    button {
+      font-size: 0.95rem;
+      min-height: 50px;
+    }
+
+    /* Talk button - bigger touch target */
+    #talkBtn {
+      padding: 18px 24px !important;
+      font-size: 1.05rem !important;
+      min-height: 56px;
+    }
+
+    /* Prevent iOS zoom on input focus */
+    input {
+      font-size: 16px !important;
+    }
+
+    /* Gallery */
+    .gallery {
+      max-width: 100%;
+      padding: 15px;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    }
+
+    .captured-item {
+      padding: 8px;
+    }
+
+    .captured-item canvas {
+      height: 60px;
+    }
+
+    /* Stats bar */
+    .stats-bar {
+      gap: 10px;
+      padding: 10px;
+      flex-direction: row;
+      flex-wrap: wrap;
+    }
+
+    .stat-item {
+      padding: 8px 15px;
+      min-width: 80px;
+    }
+
+    .stat-value {
+      font-size: 1.5rem;
+    }
+
+    /* Progress section */
+    .progress-section {
+      max-width: 100%;
+    }
+
+    /* Challenge mode */
+    #challenge-ui {
+      padding: 20px;
+    }
+
+    .challenge-header h2 {
+      font-size: 1.6rem;
+    }
+
+    /* Dialog panel */
+    .dialog-panel {
+      padding: 15px;
+    }
+
+    .dialog-header {
+      flex-direction: column;
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .dialog-line-content {
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+
+    /* Options */
+    #options-container {
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    #options-container button {
+      padding: 18px;
+      font-size: 1.05rem;
+    }
+  }
+
+  /* Very small screens */
+  @media (max-width: 420px) {
+    .canvas-container {
+      height: 120px !important;
+    }
+
+    #liveCanvas, #mysteryCanvas {
+      height: 120px;
+    }
+
+    .canvas-label {
+      top: 6px;
+      left: 8px;
+      padding: 4px 8px;
+      font-size: 0.75rem;
+    }
+
+    .ai-feedback {
+      padding: 12px;
+      font-size: 0.8rem;
+    }
+
+    .stat-value {
+      font-size: 1.3rem;
+    }
+
+    .delete-btn {
+      width: 24px;
+      height: 24px;
+      line-height: 22px;
+    }
+
+    .challenge-header h2 {
+      font-size: 1.4rem;
+    }
+
+    .feedback {
+      font-size: 1.1rem;
+      padding: 12px;
+    }
+  }
+
+    .tooltip { position: relative; display: inline-block; }
+    .tooltip .tooltiptext {
+      visibility: hidden;
+      width: 200px;
+      background-color: #333;
+      color: #fff;
+      text-align: center;
+      border-radius: 6px;
+      padding: 8px;
+      position: absolute;
+      z-index: 1;
+      bottom: 125%;
+      left: 50%;
+      margin-left: -100px;
+      opacity: 0;
+      transition: opacity 0.3s;
+      font-size: 0.85rem;
+    }
+    .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
+  </style>
+</head>
+
+<body>
+  <div id="container">
+    <div class="header">
+      <h1>🧬 Sonic Fingerprint Lab</h1>
+      <p>Explore how your voice creates unique audio patterns</p>
+    </div>
+
+    <div class="stats-bar" id="stats-bar" style="display: none;">
+      <div class="stat-item">
+        <div class="stat-label">Words Captured</div>
+        <div class="stat-value" id="stat-words">0</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Score</div>
+        <div class="stat-value" id="stat-score">0</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Difficulty</div>
+        <div class="stat-value" id="stat-difficulty">1</div>
+      </div>
+    </div>
+
+    <div id="lab-section">
+      <p style="color:#bbb; font-size: 1.05rem; margin-bottom: 20px;">
+        Record <b style="color:#00d4ff;">4 different words</b> to build your voice dataset
+      </p>
+
+      <div class="canvas-container">
+        <canvas id="liveCanvas"></canvas>
+        <div class="canvas-label">LIVE SPECTRUM</div>
+        <div class="recording-indicator" id="recording-indicator">● REC</div>
+      </div>
+
+      <div class="ai-feedback" id="word-hint">
+        Initialize microphone to begin spectral analysis...
+      </div>
+
+      <div class="controls">
+        <button id="startBtn" class="tooltip">
+          <span>🎤 Start Microphone</span>
+          <span class="tooltiptext">Grant microphone access to begin</span>
+        </button>
+        <input type="text" id="wordInput" placeholder="Type word (e.g., HELLO)" maxlength="20">
+        <button id="captureBtn" disabled class="success">📸 Capture & Analyze</button>
+      </div>
+
+      <div class="progress-section">
+        <div class="progress-header">
+          <span class="progress-label">Dataset Progress</span>
+          <span class="progress-count"><span id="count">0</span>/4</span>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-bar" id="progress-bar"></div>
+        </div>
+      </div>
+
+      <div class="gallery" id="gallery"></div>
+
+      <div class="controls">
+        <button id="goToChallengeBtn" disabled style="background: linear-gradient(135deg, #ff00d4, #cc0099); font-size: 1rem;">
+          🎯 Enter Challenge Mode →
+        </button>
+        <button id="resetLabBtn" class="secondary" style="font-size: 0.9rem;">🔄 Reset Lab</button>
+      </div>
+    </div>
+
+    <div id="challenge-section">
+      <button id="backToLabBtn" class="secondary" style="margin-bottom: 25px; width: 100%; max-width: 700px;">
+        ← Back to Lab
+      </button>
+
+      <div id="challenge-ui">
+        <div class="challenge-header">
+          <h2>🎭 Mystery Pattern</h2>
+          <p style="color: #aaa; margin: 0;">Can you identify which word created this pattern?</p>
+        </div>
+
+        <div class="canvas-container">
+          <canvas id="mysteryCanvas"></canvas>
+          
+        </div>
+
+        <div class="ai-status">
+          <div class="meter-header">
+            <span>LIVE VOICE MATCH</span>
+            <span class="meter-percentage"><span id="ai-percent">0</span>%</span>
+          </div>
+          <div class="meter-bg">
+            <div id="ai-meter-bar"></div>
+          </div>
+          <small class="meter-status" id="ai-match-text">Speak to compare your voice...</small>
+        </div>
+
+        <div class="dialog-panel">
+          <div class="dialog-header">
+            <div class="dialog-stats">
+              <b>🤖 AI Oral Quiz</b><br>
+              <span style="font-size: 0.85rem;">
+                Difficulty: <span id="diff">1</span> • Points: <span id="pts">0</span>
+              </span>
+            </div>
+            <button id="talkBtn">🎙️ Hold to Talk</button>
+          </div>
+
+          <div class="dialog-transcript">
+            <div class="dialog-line">
+              <div class="dialog-line-label">You said:</div>
+              <div class="dialog-line-content" id="studentTranscript">—</div>
+            </div>
+          <div class="dialog-line">
+            <div class="dialog-line-label">AI Response:</div>
+            <div class="dialog-line-content" id="aiReply">—</div>
+            <button id="replayTtsBtn" class="hidden" style="margin-top:8px; padding:8px 16px; font-size:0.85rem; background:linear-gradient(135deg, #444, #333); border-radius:6px;">
+              🔊 Play Audio
+            </button>
+          </div>
+            <div class="dialog-line">
+              <div class="dialog-line-label">Next Question:</div>
+              <div class="dialog-line-content" id="nextQ">Answer questions by voice to earn points 🎯</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="challenge-hint" class="hint-box hidden"></div>
+        <div id="options-container"></div>
+        <div id="feedback" class="feedback"></div>
+
+        <button id="nextBtn" class="hidden success" style="width: 100%; font-size: 1.1rem;">
+          Next Round →
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================
+    // CONFIGURATION
+    // ============================================
+    const API_URL = "https://voicerecogprototypegame.onrender.com/analyze-sound";
+    const DIALOG_URL = "https://voicerecogprototypegame.onrender.com/dialog";
+
+    // ============================================
+    // STATE
+    // ============================================
+  const state = {
+    audioCtx: null,
+    analyser: null,
+    dataArray: null,
+
+    library: [],
+    currentTarget: null,
+
+    isMicActive: false,
+
+    score: 0,
+    totalRounds: 0,
+
+    dialogHistory: [],
+    difficulty: 1,
+    points: 0,
+
+    // Recorder
+    recordingStream: null,
+    mediaRecorder: null,
+    audioChunks: [],
+
+    // Audio unlock (iOS)
+    ttsUnlocked: false,
+    unlockCtx: null,
+    
+    // TTS replay (NEW)
+    lastTtsUrl: null,
+    lastTtsData: null
+  };
+
+    // ============================================
+    // DOM
+    // ============================================
+    const elements = {
+      liveCanvas: document.getElementById('liveCanvas'),
+      mysteryCanvas: document.getElementById('mysteryCanvas'),
+      gallery: document.getElementById('gallery'),
+      wordHint: document.getElementById('word-hint'),
+      recordingIndicator: document.getElementById('recording-indicator'),
+      startBtn: document.getElementById('startBtn'),
+      captureBtn: document.getElementById('captureBtn'),
+      wordInput: document.getElementById('wordInput'),
+      goToChallengeBtn: document.getElementById('goToChallengeBtn'),
+      resetLabBtn: document.getElementById('resetLabBtn'),
+      backToLabBtn: document.getElementById('backToLabBtn'),
+      labSection: document.getElementById('lab-section'),
+      challengeSection: document.getElementById('challenge-section'),
+      optionsContainer: document.getElementById('options-container'),
+      feedback: document.getElementById('feedback'),
+      nextBtn: document.getElementById('nextBtn'),
+      challengeHint: document.getElementById('challenge-hint'),
+      talkBtn: document.getElementById('talkBtn'),
+      studentTranscript: document.getElementById('studentTranscript'),
+      aiReply: document.getElementById('aiReply'),
+      nextQ: document.getElementById('nextQ'),
+      diff: document.getElementById('diff'),
+      pts: document.getElementById('pts'),
+      count: document.getElementById('count'),
+      progressBar: document.getElementById('progress-bar'),
+      statsBar: document.getElementById('stats-bar'),
+      statWords: document.getElementById('stat-words'),
+      statScore: document.getElementById('stat-score'),
+      statDifficulty: document.getElementById('stat-difficulty'),
+      aiPercent: document.getElementById('ai-percent'),
+      aiMeterBar: document.getElementById('ai-meter-bar'),
+      aiMatchText: document.getElementById('ai-match-text')
+    };
+
+    const liveCtx = elements.liveCanvas.getContext('2d', { willReadFrequently: true });
+    liveCtx.imageSmoothingEnabled = true;
+    const mysteryCtx = elements.mysteryCanvas.getContext('2d');
+    mysteryCtx.imageSmoothingEnabled = true;
+
+    function fitCanvas(canvas, ctx) {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+
+      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+
+      // Draw using CSS pixel coords
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    fitCanvas(elements.liveCanvas, liveCtx);
+    fitCanvas(elements.mysteryCanvas, mysteryCtx);
+
+    window.addEventListener("resize", () => {
+      fitCanvas(elements.liveCanvas, liveCtx);
+      fitCanvas(elements.mysteryCanvas, mysteryCtx);
+
+      if (elements.challengeSection.style.display === "flex") {
+        redrawMystery();
+      }
+    });
+
+    // ============================================
+    // AUDIO INIT (SPECTRUM)
+    // ============================================
+    async function initAudio() {
+      if (state.audioCtx) return;
+
+      try {
+        showStatus('Requesting microphone access...', 'info');
+
+        state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        state.analyser = state.audioCtx.createAnalyser();
+        state.analyser.fftSize = 1024;
+        state.analyser.smoothingTimeConstant = 0.6;
+
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const source = state.audioCtx.createMediaStreamSource(stream);
+        source.connect(state.analyser);
+
+        state.dataArray = new Uint8Array(state.analyser.frequencyBinCount);
+        state.isMicActive = true;
+
+        showStatus('✓ Microphone active. Ready to capture audio patterns!', 'success');
+        elements.startBtn.disabled = true;
+        elements.startBtn.innerHTML = '<span>✓ Mic Active</span>';
+        elements.captureBtn.disabled = false;
+
+        draw();
+      } catch (error) {
+        console.error('Microphone error:', error);
+        showStatus('❌ Microphone access denied. Please allow microphone access and try again.', 'error');
+        alert("Microphone Error: " + error.message);
+      }
+    }
+
+    // ============================================
+    // VISUALIZATION (DPR SAFE)
+    // ============================================
+    function draw() {
+      if (!state.isMicActive) return;
+      requestAnimationFrame(draw);
+
+      if (!state.analyser || !state.dataArray) return;
+      state.analyser.getByteFrequencyData(state.dataArray);
+
+      const canvas = elements.liveCanvas;
+      const ctx = liveCtx;
+
+      const dpr = window.devicePixelRatio || 1;
+
+      // Backing buffer (real pixel) dimensions
+      const bufW = canvas.width;
+      const bufH = canvas.height;
+
+      // CSS pixel dimensions (what you think of as "screen size")
+      const cssW = bufW / dpr;
+      const cssH = bufH / dpr;
+
+      // Thin scanline on mobile
+      const scrollCss = (cssH <= 170) ? 1 : 2;
+      const scrollPx = Math.max(1, Math.round(scrollCss * dpr)); // convert to buffer pixels
+
+      // --- Waterfall scroll (IMPORTANT: source rect uses BUFFER PIXELS) ---
+      if (bufH > scrollPx) {
+        // Copy the whole canvas down by scrollPx
+        ctx.save();
+
+        // Temporarily reset transform so drawImage uses buffer coords cleanly
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+        ctx.drawImage(
+          canvas,
+          0, 0, bufW, bufH - scrollPx,      // ✅ source in buffer pixels
+          0, scrollPx, bufW, bufH - scrollPx // ✅ dest in buffer pixels
+        );
+
+        ctx.restore();
+      }
+
+      // --- Draw the new top scanline in CSS space (your fitCanvas transform expects CSS coords) ---
+      // Decide how many bins to draw (avoid chunky columns on small screens)
+      const maxBins = state.dataArray.length;
+
+
+      // Mobile: fewer columns per pixel (avoid chunkiness)
+      // Desktop: more columns (use the whole width)
+      const targetCols =
+        cssW < 520 ? Math.floor(cssW / 2) : Math.floor(cssW); // breakpoint you can tweak
+
+      const binsToShow = Math.min(
+        maxBins,
+        Math.max(120, targetCols)
+      );
+      
+      const barWidth = cssW / binsToShow;
+
+      const noiseFloor = 18;
+      const gamma = 1.6;
+
+      for (let i = 0; i < binsToShow; i++) {
+        const val = state.dataArray[i];
+
+        let x = (val - noiseFloor) / (255 - noiseFloor);
+        x = Math.max(0, Math.min(1, x));
+        x = Math.pow(x, gamma);
+
+        let r = 0, g = 0, b = 0;
+        if (x < 0.5) {
+          const t = x / 0.5;
+          r = 0;
+          g = Math.floor(255 * t);
+          b = Math.floor(180 + 75 * t);
+        } else {
+          const t = (x - 0.5) / 0.5;
+          r = Math.floor(255 * t);
+          g = 255;
+          b = Math.floor(255 * (1 - t));
+        }
+
+        ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+
+        // Draw at the top; height is scrollCss in CSS pixels
+        const xPos = i * barWidth;
+        const w = Math.max(1, Math.ceil(barWidth));
+        ctx.fillRect(xPos, 0, w, scrollCss);
+      }
+
+      if (state.currentTarget && elements.challengeSection.style.display === "flex") {
+        compareLiveToTarget(state.dataArray, state.currentTarget.freq);
+      }
+    }
+
+
+    // ============================================
+    // WORD CAPTURE
+    // ============================================
+    async function captureWord() {
+      const word = elements.wordInput.value.toUpperCase().trim();
+
+      if (!word) {
+        alert("Please type the word you are saying!");
+        return;
+      }
+
+      if (state.library.some(item => item.word === word)) {
+        alert("You've already captured this word! Please use a different word.");
+        return;
+      }
+
+      // Snapshot at CSS size (not DPR-scaled buffer size)
+      const dpr = window.devicePixelRatio || 1;
+      const cssW = elements.liveCanvas.width / dpr;
+      const cssH = elements.liveCanvas.height / dpr;
+
+      const snapCanvas = document.createElement('canvas');
+      snapCanvas.width = cssW;
+      snapCanvas.height = cssH;
+      const snapCtx = snapCanvas.getContext('2d');
+
+      // Scale down from buffer to CSS size
+      snapCtx.drawImage(
+        elements.liveCanvas,
+        0, 0, elements.liveCanvas.width, elements.liveCanvas.height,
+        0, 0, cssW, cssH
+      );
+
+      console.log('Captured canvas:', {cssW, cssH, dpr});
+
+      const freqSnapshot = new Uint8Array(state.dataArray);
+
+      showStatus(`Analyzing spectral data for "${word}"...`, 'loading');
+      elements.captureBtn.disabled = true;
+      elements.recordingIndicator.classList.add('active');
+
+      let aiAnalysis = "Analysis unavailable (Offline Mode)";
+
+      try {
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            word: word,
+            frequencies: Array.from(freqSnapshot).slice(0, 40)
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          aiAnalysis = data.analysis;
+          showStatus(`✓ Analysis complete for "${word}"`, 'success');
+          setTimeout(() => showStatus(aiAnalysis, 'analysis'), 500);
+        } else {
+          throw new Error("Server error");
+        }
+      } catch (error) {
+        console.error('Analysis error:', error);
+        showStatus('⚠️ Connection failed. Using offline mode.', 'error');
+      }
+
+      state.library.push({
+        word,
+        img: snapCanvas,
+        freq: freqSnapshot,
+        analysis: aiAnalysis,
+        timestamp: new Date().toLocaleTimeString()
+      });
+
+      addToGallery(word, snapCanvas, state.library.length - 1);
+      updateProgress();
+
+      elements.wordInput.value = "";
+      elements.captureBtn.disabled = false;
+      elements.recordingIndicator.classList.remove('active');
+
+      if (state.library.length === 1) elements.statsBar.style.display = 'flex';
+      saveToLocalStorage();
+    }
+
+    // ============================================
+    // GALLERY
+    // ============================================
+    function addToGallery(word, snapCanvas, index) {
+      const container = document.createElement('div');
+      container.className = 'captured-item';
+      container.setAttribute('data-index', index);
+
+      const del = document.createElement('button');
+      del.className = 'delete-btn';
+      del.type = 'button';
+      del.textContent = '×';
+      del.title = 'Delete';
+      del.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteCapture(Number(container.getAttribute('data-index')));
+      });
+      container.appendChild(del);
+
+      const miniCanvas = document.createElement('canvas');
+      miniCanvas.width = 140;
+      miniCanvas.height = 70;
+      const miniCtx = miniCanvas.getContext('2d');
+      miniCtx.imageSmoothingEnabled = true;
+      miniCtx.clearRect(0, 0, miniCanvas.width, miniCanvas.height);
+      miniCtx.drawImage(snapCanvas, 0, 0, miniCanvas.width, miniCanvas.height);
+
+      const wordLabel = document.createElement('div');
+      wordLabel.className = 'word-label';
+      wordLabel.textContent = word;
+
+      const timestamp = document.createElement('div');
+      timestamp.className = 'timestamp';
+      timestamp.textContent = state.library[index].timestamp;
+
+      container.appendChild(miniCanvas);
+      container.appendChild(wordLabel);
+      container.appendChild(timestamp);
+
+      container.addEventListener('click', () => {
+        showWordDetails(Number(container.getAttribute('data-index')));
+      });
+
+      elements.gallery.appendChild(container);
+    }
+
+    function showWordDetails(index) {
+      const item = state.library[index];
+      alert(`Word: ${item.word}\nCaptured: ${item.timestamp}\n\nAI Analysis:\n${item.analysis}`);
+    }
+
+    function deleteCapture(index) {
+      if (!confirm(`Delete "${state.library[index]?.word}" from dataset?`)) return;
+
+      state.library.splice(index, 1);
+
+      const el = elements.gallery.querySelector(`[data-index="${index}"]`);
+      if (el) el.remove();
+
+      [...elements.gallery.querySelectorAll(".captured-item")].forEach((itemEl, newIdx) => {
+        itemEl.setAttribute("data-index", newIdx);
+      });
+
+      if (state.currentTarget && !state.library.includes(state.currentTarget)) {
+        switchToLab();
+      }
+
+      updateProgress();
+      updateStats();
+      saveToLocalStorage();
+    }
+
+    // ============================================
+    // MATCHING
+    // ============================================
+    function compareLiveToTarget(live, target) {
+      if (!live || !target || !target.length) {
+        updateMeter(0);
+        return;
+      }
+
+      const n = Math.min(live.length, target.length);
+
+      let liveVol = 0;
+      for (let i = 0; i < n; i++) liveVol += live[i];
+      liveVol /= n;
+
+      if (liveVol < 5) {
+        updateMeter(0);
+        return;
+      }
+
+      let dotProduct = 0, magA = 0, magB = 0;
+      for (let i = 0; i < n; i++) {
+        const a = live[i];
+        const b = target[i];
+        dotProduct += a * b;
+        magA += a * a;
+        magB += b * b;
+      }
+
+      const magnitude = Math.sqrt(magA) * Math.sqrt(magB);
+      if (!magnitude) {
+        updateMeter(0);
+        return;
+      }
+
+      const similarity = dotProduct / magnitude;
+
+      let percent = 0;
+      if (similarity > 0.7) percent = Math.min(100, ((similarity - 0.7) / 0.3) * 100);
+      updateMeter(Math.floor(percent));
+    }
+
+    function updateMeter(percent) {
+      elements.aiPercent.innerText = percent;
+      elements.aiMeterBar.style.width = percent + "%";
+
+      const text = elements.aiMatchText;
+      if (percent > 80) {
+        text.innerText = "✓ MATCH CONFIRMED";
+        text.style.color = "#00ff88";
+      } else if (percent > 40) {
+        text.innerText = "🔍 DETECTING PATTERN...";
+        text.style.color = "#00d4ff";
+      } else {
+        text.innerText = "✕ NO MATCH";
+        text.style.color = "#555";
+      }
+    }
+
+    // ============================================
+    // CHALLENGE MODE
+    // ============================================
+    function getInitialQuestion(difficulty) {
+      const questions = {
+        1: [
+          "What happens to the spectral pattern when you speak the same word louder?",
+          "Which frequency range shows the most energy in this pattern?",
+          "How does speaking at different pitches change the spectrum?"
+        ],
+        2: [
+          "Why do vowel sounds typically show energy in the mid-frequency range?",
+          "What causes the peaks and valleys in the frequency spectrum?",
+          "How would whispering this word change the spectral pattern?"
+        ],
+        3: [
+          "Explain the relationship between the fundamental frequency and harmonics you see here.",
+          "Why might two different people saying this word create different patterns?",
+          "What makes this word's spectral signature unique compared to others?"
+        ],
+        4: [
+          "How do voiced sounds differ from unvoiced sounds in spectral characteristics?",
+          "What role do formants play in distinguishing different vowel sounds?",
+          "Why does the FFT display discrete bins rather than a continuous spectrum?"
+        ],
+        5: [
+          "How would filtering affect the intelligibility of this word based on its spectrum?",
+          "What spectral features would you use for speaker identification?",
+          "Explain the time-frequency resolution trade-off in spectral analysis."
+        ]
+      };
+      const list = questions[difficulty] || questions[1];
+      return list[Math.floor(Math.random() * list.length)];
+    }
+
+    function startRound() {
+      elements.feedback.innerHTML = "";
+      elements.feedback.className = "feedback";
+      elements.nextBtn.classList.add('hidden');
+      elements.challengeHint.classList.add('hidden');
+      elements.optionsContainer.innerHTML = "";
+
+      state.currentTarget = state.library[Math.floor(Math.random() * state.library.length)];
+
+      fitCanvas(elements.mysteryCanvas, mysteryCtx);
+      redrawMystery();
+
+      if (state.totalRounds === 0) {
+        elements.nextQ.textContent = getInitialQuestion(state.difficulty);
+        elements.studentTranscript.textContent = "—";
+        elements.aiReply.textContent = "Hold the talk button and answer the question above!";
+      }
+
+      const decoys = state.library
+        .filter(item => item.word !== state.currentTarget.word)
+        .sort(() => 0.5 - Math.random())
+        .slice(0, Math.min(2, state.library.length - 1));
+
+      const choices = [state.currentTarget, ...decoys].sort(() => 0.5 - Math.random());
+
+      choices.forEach(choice => {
+        const btn = document.createElement('button');
+        btn.innerText = choice.word;
+        btn.onclick = () => checkAnswer(choice.word);
+        elements.optionsContainer.appendChild(btn);
+      });
+
+      state.totalRounds++;
+      updateMeter(0);
+    }
+
+    function checkAnswer(selectedWord) {
+      document.querySelectorAll('#options-container button').forEach(btn => btn.disabled = true);
+
+      const isCorrect = selectedWord === state.currentTarget.word;
+
+      if (isCorrect) {
+        state.score++;
+        elements.feedback.innerHTML = "✓ CORRECT! Great pattern recognition!";
+        elements.feedback.className = "feedback correct";
+      } else {
+        elements.feedback.innerHTML = `✕ INCORRECT. The answer was "${state.currentTarget.word}"`;
+        elements.feedback.className = "feedback incorrect";
+
+        elements.challengeHint.classList.remove('hidden');
+        elements.challengeHint.innerHTML = `
+          <strong>💡 AI Lab Report:</strong><br>
+          ${state.currentTarget.analysis}
+        `;
+      }
+
+      elements.nextBtn.classList.remove('hidden');
+      updateStats();
+      saveToLocalStorage();
+    }
+
+    // Keep aspect ratio (no stretch) after rotate/resize
+    function drawContain(ctx, img, w, h) {
+      const iw = img.width || img.naturalWidth || w;
+      const ih = img.height || img.naturalHeight || h;
+      const scale = Math.min(w / iw, h / ih);
+      const dw = iw * scale;
+      const dh = ih * scale;
+      const dx = (w - dw) / 2;
+      const dy = (h - dh) / 2;
+      ctx.clearRect(0, 0, w, h);
+      ctx.drawImage(img, dx, dy, dw, dh);
+    }
+
+    function redrawMystery() {
+      if (!state.currentTarget) return;
+
+      const canvas = elements.mysteryCanvas;
+      const ctx = mysteryCtx;
+      
+      // Get CSS dimensions
+      const dpr = window.devicePixelRatio || 1;
+      const cssW = canvas.width / dpr;
+      const cssH = canvas.height / dpr;
+
+      // Clear canvas
+      ctx.clearRect(0, 0, cssW, cssH);
+
+      // Get source image dimensions
+      const sourceImg = state.currentTarget.img;
+      const sourceW = sourceImg.width;
+      const sourceH = sourceImg.height;
+
+      // Calculate scale to fit (contain, not cover)
+      const scale = Math.min(cssW / sourceW, cssH / sourceH);
+      
+      // Calculate destination size
+      const destW = sourceW * scale;
+      const destH = sourceH * scale;
+      
+      // Center it
+      const x = (cssW - destW) / 2;
+      const y = (cssH - destH) / 2;
+
+      // Draw with proper scaling
+      ctx.drawImage(sourceImg, 0, 0, sourceW, sourceH, x, y, destW, destH);
+      
+      console.log('Mystery canvas redrawn:', {sourceW, sourceH, destW, destH, scale});
+    }
+
+    // ============================================
+    // AI DIALOG (RECORDER + TTS)
+    // ============================================
+    async function ensureRecordingStream() {
+      if (state.recordingStream) return state.recordingStream;
+
+      state.recordingStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+      return state.recordingStream;
+    }
+
+    function pickBestRecorderMimeType() {
+      const preferredTypes = [
+        "audio/mp4",
+        "audio/mp4;codecs=mp4a.40.2",
+        "audio/aac",
+        "audio/webm;codecs=opus",
+        "audio/webm"
+      ];
+
+      if (!window.MediaRecorder) return "";
+      for (const t of preferredTypes) {
+        try {
+          if (MediaRecorder.isTypeSupported(t)) return t;
+        } catch (_) {}
+      }
+      return "";
+    }
+
+    async function unlockAudioForiOS() {
+      if (state.ttsUnlocked) return;
+      
+      console.log("🔓 AGGRESSIVE audio unlock starting...");
+
+      try {
+        // Method 1: AudioContext unlock
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) {
+          if (!state.unlockCtx) {
+            state.unlockCtx = new AC();
+            console.log("Created new AudioContext");
+          }
+
+          if (state.unlockCtx.state === 'suspended') {
+            await state.unlockCtx.resume();
+            console.log("✓ AudioContext resumed from suspended");
+          }
+
+          // Play silent buffer
+          const buffer = state.unlockCtx.createBuffer(1, 1, 22050);
+          const source = state.unlockCtx.createBufferSource();
+          source.buffer = buffer;
+          source.connect(state.unlockCtx.destination);
+          source.start(0);
+          console.log("✓ Silent buffer played");
+        }
+
+        // Method 2: HTML5 Audio unlock (MORE AGGRESSIVE)
+        const silentMp3 = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAADhADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwP////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAA4QfxZS8AAAAAAD/+xDEAAADSAAAAAAAAABLAAAAAExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVQ==';
+        
+        const audio1 = new Audio(silentMp3);
+        audio1.volume = 0.01; // Almost silent but not muted
+        audio1.preload = 'auto';
+        audio1.playsInline = true;
+        
+        try {
+          await audio1.play();
+          console.log("✓ Silent MP3 played");
+        } catch (e) {
+          console.warn("Silent MP3 blocked:", e.message);
+        }
+
+        // Method 3: Try playing actual audible beep (helps iOS)
+        const audioCtx = state.unlockCtx || new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        
+        oscillator.frequency.value = 440; // A4 note
+        gainNode.gain.value = 0.01; // Very quiet
+        
+        oscillator.start(audioCtx.currentTime);
+        oscillator.stop(audioCtx.currentTime + 0.01); // 10ms beep
+        
+        console.log("✓ Beep tone played");
+
+        state.ttsUnlocked = true;
+        console.log("✅ Audio unlock complete!");
+        
+        // Show user confirmation
+        const indicator = document.getElementById('aiReply');
+        if (indicator && indicator.textContent === '—') {
+          indicator.textContent = '✓ Audio enabled! Ready to answer questions.';
+          indicator.style.color = '#00ff88';
+          setTimeout(() => {
+            indicator.textContent = '—';
+            indicator.style.color = '';
+          }, 2000);
+        }
+
+      } catch (e) {
+        console.error("❌ Audio unlock failed:", e);
+        state.ttsUnlocked = true; // Continue anyway
+      }
+    }
+    // Test if audio actually works
+    //async function testAudioPlayback() {
+    //  console.log("🧪 Testing audio playback...");
+      
+    //  try {
+     //   const silentMp3 = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAADhADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwP////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAA4QfxZS8AAAAAAD/+xDEAAADSAAAAAAAAABLAAAAAExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVQ==';
+        
+     //   const testAudio = new Audio(silentMp3);
+     //   testAudio.volume = 0.5;
+     //   testAudio.playsInline = true;
+        
+     //   await testAudio.play();
+     //   console.log("✅ Audio test PASSED - playback works!");
+    //    return true;
+    //  } catch (e) {
+    //    console.error("❌ Audio test FAILED:", e.message);
+    //    alert("⚠️ Audio blocked by browser. Please:\n1. Check device is not in silent mode\n2. Check browser audio permissions\n3. Try with headphones connected");
+    //    return false;
+    //  }
+    //}
+    async function startRecording() {
+      if (!state.currentTarget) {
+        elements.aiReply.textContent = "Enter Challenge Mode first to use the AI quiz 🙂";
+        return;
+      }
+
+      if (state.mediaRecorder && state.mediaRecorder.state === "recording") return;
+
+      elements.talkBtn.disabled = true;
+      elements.talkBtn.textContent = "🎙️ Recording...";
+      state.audioChunks = [];
+
+      try {
+        const stream = await ensureRecordingStream();
+
+        const mimeType = pickBestRecorderMimeType();
+        const options = mimeType ? { mimeType } : undefined;
+
+        state.mediaRecorder = options ? new MediaRecorder(stream, options) : new MediaRecorder(stream);
+
+        state.mediaRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) state.audioChunks.push(e.data);
+        };
+
+        state.mediaRecorder.onerror = (e) => {
+          console.error("MediaRecorder error:", e);
+          elements.aiReply.textContent = "⚠️ Recording failed on this device/browser.";
+          elements.talkBtn.disabled = false;
+          elements.talkBtn.textContent = "🎙️ Hold to Talk";
+        };
+
+        // timeslice helps iOS reliably emit data
+        state.mediaRecorder.start(250);
+
+      } catch (err) {
+        console.error("startRecording failed:", err);
+        elements.aiReply.textContent = "❌ Couldn't start recording. Check mic permissions and try again.";
+      } finally {
+        setTimeout(() => { elements.talkBtn.disabled = false; }, 120);
+      }
+    }
+
+    async function stopRecordingAndSend() {
+      if (!state.mediaRecorder) return;
+
+      // ✅ Rapid tap guard: don't stop if not recording
+      if (state.mediaRecorder.state !== "recording") {
+        elements.talkBtn.disabled = false;
+        elements.talkBtn.textContent = "🎙️ Hold to Talk";
+        return;
+      }
+
+      elements.talkBtn.disabled = true;
+      elements.talkBtn.textContent = "⏳ AI Thinking...";
+
+      const stopped = new Promise((resolve) => {
+        state.mediaRecorder.onstop = resolve;
+      });
+
+      try {
+        state.mediaRecorder.stop();
+      } catch (e) {
+        // Another safety net for odd browser states
+        console.error("stop() failed:", e);
+        elements.talkBtn.disabled = false;
+        elements.talkBtn.textContent = "🎙️ Hold to Talk";
+        return;
+      }
+
+      await stopped;
+
+      const mime = state.mediaRecorder.mimeType || 'audio/webm';
+      const blob = new Blob(state.audioChunks, { type: mime });
+
+      if (blob.size < 800) {
+        elements.talkBtn.disabled = false;
+        elements.talkBtn.textContent = "🎙️ Hold to Talk";
+        elements.aiReply.textContent = "I didn't catch that—try speaking a bit louder 🙂";
+        return;
+      }
+
+      const ctx = {
+        mode: "challenge",
+        targetWord: state.currentTarget?.word || null,
+        fft: state.currentTarget?.freq ? Array.from(state.currentTarget.freq).slice(0, 40) : null,
+        analysisText: state.currentTarget?.analysis || "",
+        difficulty: state.difficulty,
+        points: state.points,
+        history: state.dialogHistory
+      };
+
+      const form = new FormData();
+      // Keep filename generic; backend should use MIME anyway
+      form.append("audio", blob, "answer");
+      form.append("context", JSON.stringify(ctx));
+
+      try {
+        const resp = await fetch(DIALOG_URL, { method: "POST", body: form });
+        if (!resp.ok) throw new Error("Dialog request failed");
+
+        const data = await resp.json();
+
+        elements.studentTranscript.textContent = data.transcript || "(no transcript)";
+        elements.aiReply.textContent = data.reply || "(no reply)";
+        elements.nextQ.textContent = data.nextQuestion || "—";
+
+        state.difficulty = data.difficulty ?? state.difficulty;
+        state.points = data.totalPoints ?? state.points;
+
+        elements.diff.textContent = state.difficulty;
+        elements.pts.textContent = state.points;
+
+        if (data.transcript) state.dialogHistory.push({ role: "user", content: data.transcript });
+        if (data.reply) state.dialogHistory.push({ role: "assistant", content: data.reply });
+
+        // TTS - Enhanced for mobile
+        if (data.ttsAudioBase64 && data.ttsMime) {
+          console.log("🔊 Preparing TTS audio...");
+          
+          const bytes = Uint8Array.from(atob(data.ttsAudioBase64), c => c.charCodeAt(0));
+          const audioBlob = new Blob([bytes], { type: data.ttsMime });
+          const url = URL.createObjectURL(audioBlob);
+
+          // Store for replay
+          state.lastTtsData = { blob: audioBlob, mime: data.ttsMime };
+
+          // Show replay button
+          const replayBtn = document.getElementById('replayTtsBtn');
+          if (replayBtn) {
+            replayBtn.classList.remove('hidden');
+            replayBtn.onclick = () => playStoredTts();
+          }
+
+          const audio = new Audio(url);
+          audio.playsInline = true;
+          audio.preload = "auto";
+          audio.volume = 1.0;
+          
+          // CRITICAL for iOS: load the audio first
+          audio.load();
+          
+          // Wait a tiny bit for load
+          await new Promise(resolve => setTimeout(resolve, 50));
+
+          console.log("Audio state:", {
+            readyState: audio.readyState,
+            paused: audio.paused,
+            volume: audio.volume
+          });
+
+          try {
+            const playPromise = audio.play();
+            await playPromise;
+            console.log("✅ TTS playing successfully!");
+            
+            // Visual confirmation
+            elements.aiReply.style.borderLeft = "3px solid #00ff88";
+            setTimeout(() => {
+              elements.aiReply.style.borderLeft = "";
+            }, 2000);
+            
+          } catch (e) {
+            console.error("❌ TTS autoplay blocked:", e.name, e.message);
+            console.log("💡 Showing replay button for manual playback");
+            
+            // Visual indicator
+            elements.aiReply.style.borderLeft = "3px solid #ffaa00";
+            elements.aiReply.title = "Audio ready - click Play button";
+            
+            alert("🔊 Audio ready! Tap the 'Play Audio' button below to hear the response.");
+          }
+
+          audio.onended = () => {
+            URL.revokeObjectURL(url);
+            console.log("✓ TTS playback complete");
+          };
+          
+          audio.onerror = (e) => {
+            console.error("❌ TTS error:", e);
+            URL.revokeObjectURL(url);
+          };
+        }
+        updateStats();
+        saveToLocalStorage();
+      } catch (error) {
+        console.error('Dialog error:', error);
+        elements.aiReply.textContent = "⚠️ Dialog failed. Check connection and try again.";
+      } finally {
+        elements.talkBtn.disabled = false;
+        elements.talkBtn.textContent = "🎙️ Hold to Talk";
+      }
+    }
+  // ============================================
+  // TTS REPLAY
+  // ============================================
+  async function playStoredTts() {
+    if (!state.lastTtsData) {
+      console.warn("No TTS audio stored");
+      alert("No audio available to replay");
+      return;
+    }
+
+    console.log("🔊 Replaying TTS audio...");
+
+    const url = URL.createObjectURL(state.lastTtsData.blob);
+    const audio = new Audio(url);
+    audio.playsInline = true;
+    audio.volume = 1.0;
+    
+    // Load first
+    audio.load();
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    const replayBtn = document.getElementById('replayTtsBtn');
+    if (replayBtn) {
+      replayBtn.textContent = "🔊 Playing...";
+      replayBtn.disabled = true;
+    }
+
+    try {
+      // Try to play
+      const playPromise = audio.play();
+      await playPromise;
+      
+      console.log("✅ Replay successful!");
+      
+      // Visual feedback
+      elements.aiReply.style.backgroundColor = "rgba(0, 255, 136, 0.1)";
+      setTimeout(() => {
+        elements.aiReply.style.backgroundColor = "";
+      }, 2000);
+      
+    } catch (e) {
+      console.error("❌ Replay failed:", e);
+      
+      // Give detailed error
+      let errorMsg = "Audio playback blocked.\n\n";
+      errorMsg += "Please try:\n";
+      errorMsg += "• Turn OFF silent mode\n";
+      errorMsg += "• Increase volume\n";
+      errorMsg += "• Use headphones\n";
+      errorMsg += "• Allow audio in browser settings\n";
+      errorMsg += "• Try Chrome browser";
+      
+      alert(errorMsg);
+    }
+
+    audio.onended = () => {
+      URL.revokeObjectURL(url);
+      if (replayBtn) {
+        replayBtn.textContent = "🔊 Play Audio";
+        replayBtn.disabled = false;
+      }
+      console.log("✓ Replay complete");
+    };
+    
+    audio.onerror = () => {
+      URL.revokeObjectURL(url);
+      if (replayBtn) {
+        replayBtn.textContent = "🔊 Play Audio";
+        replayBtn.disabled = false;
+      }
+    };
+  }
+
+
+    // ============================================
+    // UI HELPERS
+    // ============================================
+    function unlockAudioNow() {
+      // Do NOT await inside the gesture path
+      const silentMp3 = 'data:audio/mp3;base64,SUQz...'; // your existing one
+      const a = new Audio(silentMp3);
+      a.playsInline = true;
+      a.volume = 0.01;
+
+      const p = a.play(); // trigger immediately
+      if (p && typeof p.catch === "function") {
+        p.then(() => {
+          state.ttsUnlocked = true;
+        }).catch(() => {
+          // don't set unlocked on failure
+          state.ttsUnlocked = false;
+        });
+      }
+    }
+    function showStatus(message, type = 'info') {
+      elements.wordHint.innerHTML = message;
+      if (type === 'loading') elements.wordHint.classList.add('loading');
+      else elements.wordHint.classList.remove('loading');
+    }
+
+    function updateProgress() {
+      const count = state.library.length;
+      elements.count.innerText = count;
+      elements.statWords.innerText = count;
+
+      const percentage = (count / 4) * 100;
+      elements.progressBar.style.width = percentage + '%';
+
+      elements.goToChallengeBtn.disabled = count < 4;
+
+      if (count >= 4) {
+        elements.goToChallengeBtn.style.boxShadow = "0 0 25px #ff00d4";
+        showStatus('✓ Dataset complete! Ready for Challenge Mode!', 'success');
+      }
+    }
+
+    function updateStats() {
+      elements.statScore.innerText = state.score;
+      elements.statDifficulty.innerText = state.difficulty;
+      elements.pts.innerText = state.points;
+    }
+
+    function switchToChallenge() {
+      elements.labSection.classList.add('hidden');
+      elements.challengeSection.style.display = 'flex';
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          fitCanvas(elements.mysteryCanvas, mysteryCtx);
+          fitCanvas(elements.liveCanvas, liveCtx);
+
+          state.totalRounds = 0;
+          state.score = 0;
+
+          startRound();
+          console.log('Challenge mode activated. Target word:', state.currentTarget?.word);
+        });
+      });
+    }
+
+    function switchToLab() {
+      elements.challengeSection.style.display = 'none';
+      elements.labSection.classList.remove('hidden');
+      state.currentTarget = null;
+
+      requestAnimationFrame(() => {
+        fitCanvas(elements.liveCanvas, liveCtx);
+        fitCanvas(elements.mysteryCanvas, mysteryCtx);
+      });
+    }
+  // ============================================
+  // DATA PERSISTENCE (localStorage)
+  // ============================================
+  const STORAGE_KEY = 'sonic-fingerprint-lab-data';
+  const STORAGE_VERSION = 1;
+
+  // Save all important state to localStorage
+  function saveToLocalStorage() {
+    try {
+      // Convert library items: canvas → data URL
+      const libraryToSave = state.library.map(item => ({
+        word: item.word,
+        imgDataUrl: item.img.toDataURL('image/png'),
+        freq: Array.from(item.freq),
+        analysis: item.analysis,
+        timestamp: item.timestamp
+      }));
+
+      const dataToSave = {
+        version: STORAGE_VERSION,
+        library: libraryToSave,
+        score: state.score,
+        difficulty: state.difficulty,
+        points: state.points,
+        dialogHistory: state.dialogHistory.slice(-20),
+        savedAt: new Date().toISOString()
+      };
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+      console.log('✓ Data saved to localStorage:', dataToSave.library.length, 'words');
+    } catch (error) {
+      console.error('Failed to save to localStorage:', error);
+      if (error.name === 'QuotaExceededError') {
+        alert('Storage quota exceeded. Try deleting some words.');
+      }
+    }
+  }
+
+  // Load state from localStorage
+  async function loadFromLocalStorage() {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) {
+        console.log('No saved data found');
+        return false;
+      }
+
+      const data = JSON.parse(saved);
+      
+      if (data.version !== STORAGE_VERSION) {
+        console.warn('Saved data version mismatch, clearing...');
+        localStorage.removeItem(STORAGE_KEY);
+        return false;
+      }
+
+      console.log('📥 Loading saved data from', data.savedAt);
+      console.log('Found', data.library.length, 'saved words');
+
+      // Restore library: data URL → canvas
+      for (const item of data.library) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        const img = new Image();
+        await new Promise((resolve, reject) => {
+          img.onload = () => {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            resolve();
+          };
+          img.onerror = reject;
+          img.src = item.imgDataUrl;
+        });
+
+        state.library.push({
+          word: item.word,
+          img: canvas,
+          freq: new Uint8Array(item.freq),
+          analysis: item.analysis,
+          timestamp: item.timestamp
+        });
+
+        addToGallery(item.word, canvas, state.library.length - 1);
+      }
+
+      state.score = data.score || 0;
+      state.difficulty = data.difficulty || 1;
+      state.points = data.points || 0;
+      state.dialogHistory = data.dialogHistory || [];
+
+      updateProgress();
+      updateStats();
+
+      console.log('✓ Data loaded successfully!');
+      
+      if (data.library.length > 0) {
+        showStatus(`✓ Restored ${data.library.length} captured words from previous session`, 'success');
+        setTimeout(() => {
+          showStatus('Ready to capture more words or enter Challenge Mode!', 'info');
+        }, 3000);
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Failed to load from localStorage:', error);
+      localStorage.removeItem(STORAGE_KEY);
+      return false;
+    }
+  }
+
+  // Clear all saved data
+  function clearSavedData() {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      console.log('✓ Saved data cleared');
+    } catch (error) {
+      console.error('Failed to clear saved data:', error);
+    }
+  }
+
+  // Get storage info (for debugging)
+  function getStorageInfo() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return { exists: false };
+    
+    const sizeKB = (saved.length * 2) / 1024;
+    const data = JSON.parse(saved);
+    
+    return {
+      exists: true,
+      sizeKB: sizeKB.toFixed(2),
+      wordCount: data.library?.length || 0,
+      savedAt: data.savedAt,
+      version: data.version
+    };
+  }
+    // ============================================
+    // EVENTS
+    // ============================================
+    elements.startBtn.onclick = initAudio;
+    elements.captureBtn.onclick = captureWord;
+    elements.goToChallengeBtn.onclick = switchToChallenge;
+    elements.backToLabBtn.onclick = switchToLab;
+    elements.nextBtn.onclick = startRound;
+
+    elements.resetLabBtn.onclick = () => {
+      if (confirm('This will delete all your captured words and reset progress. Continue?')) {
+        clearSavedData();  // Clear localStorage first
+        location.reload();
+      }
+    };
+
+    elements.wordInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && !elements.captureBtn.disabled) captureWord();
+    });
+
+    // Hold-to-record using Pointer Events (fixes "never let go" on mobile)
+    let isRecordingHold = false;
+
+    async function endHold() {
+      if (!isRecordingHold) return;
+      isRecordingHold = false;
+      await stopRecordingAndSend();
+    }
+
+    elements.talkBtn.addEventListener("pointerdown", async (e) => {
+      e.preventDefault();
+      if (!state.ttsUnlocked) {
+        unlockAudioNow(); // <-- no await
+      }
+      // now do the async things
+      (async () => {
+        if (isRecordingHold) return;
+        isRecordingHold = true;
+        try { elements.talkBtn.setPointerCapture(e.pointerId); } catch (_) {}
+        await startRecording();
+      })();
+    });
+    elements.talkBtn.addEventListener("pointerup", async (e) => {
+      e.preventDefault();
+      await endHold();
+    });
+
+    elements.talkBtn.addEventListener("pointercancel", async (e) => {
+      e.preventDefault();
+      await endHold();
+    });
+
+    elements.talkBtn.addEventListener("lostpointercapture", async () => {
+      await endHold();
+    });
+
+    console.log('🧬 Sonic Fingerprint Lab initialized');
+  // ============================================
+  // INITIALIZE - Load saved data on page load
+  // ============================================
+  (async function initializeApp() {
+    console.log('🧬 Sonic Fingerprint Lab initializing...');
+    
+    const loaded = await loadFromLocalStorage();
+    
+    if (loaded && state.library.length > 0) {
+      elements.statsBar.style.display = 'flex';
+      console.log('✓ Loaded', state.library.length, 'saved words');
+    } else {
+      console.log('✓ App initialized (no saved data)');
+    }
+    
+    const storageInfo = getStorageInfo();
+    console.log('Storage info:', storageInfo);
+  })();
+
+  console.log('🧬 Sonic Fingerprint Lab ready!');
+  </script>
+</body>
+</html>
