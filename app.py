@@ -19,6 +19,7 @@ import json
 import base64
 import traceback
 import logging
+import re
 from typing import Any, Dict, List, Tuple
 from datetime import datetime
 
@@ -154,9 +155,14 @@ def safe_parse_json(s: str) -> Tuple[bool, Dict[str, Any]]:
 
 def is_idk(text: str) -> bool:
     t = (text or "").strip().lower()
+    # remove punctuation-ish
+    t = re.sub(r"[^a-z0-9\s']", " ", t)
+    t = re.sub(r"\s+", " ", t).strip()
+
     phrases = [
         "i don't know", "i dont know", "idk", "no idea", "not sure",
-        "i'm not sure", "im not sure", "i forgot", "can't remember", "cant remember"
+        "i'm not sure", "im not sure", "i forgot", "can't remember", "cant remember",
+        "i dunno", "dont know"
     ]
     return any(p in t for p in phrases)
 # =========================================================
@@ -446,10 +452,28 @@ def dialog():
         audio_file = request.files["audio"]
 
         ctx_raw = request.form.get("context", "{}")
+        ctx = {}
         try:
             ctx = json.loads(ctx_raw) if ctx_raw else {}
         except json.JSONDecodeError:
             ctx = {}
+
+        # ✅ Extract context ONCE with safe defaults (always defined)
+        difficulty = clamp_int(ctx.get("difficulty", 1), 1, 5, 1)
+        total_points = clamp_int(ctx.get("points", 0), 0, 100000, 0)
+        target_word = truncate(ctx.get("targetWord", ""), 64)
+        analysis_text = truncate(ctx.get("analysisText", ""), 2000)
+        current_question = truncate(ctx.get("currentQuestion", ""), 500)
+
+        if not current_question:
+            current_question = get_next_question(difficulty)
+
+        fft = ctx.get("fft")
+        fft_preview = fft[:40] if isinstance(fft, list) else None
+
+        history = ctx.get("history", [])
+        if not isinstance(history, list):
+            history = []
 
         # Transcribe
         try:
@@ -466,6 +490,7 @@ def dialog():
             teach_prompt = f"""
         You are a Physics + Signal Processing tutor. The student said they don't know.
 
+        Current difficulty: {difficulty}
         Question: "{current_question}"
 
         Give a short walkthrough that teaches the correct answer:
@@ -484,7 +509,7 @@ def dialog():
         "nextQuestion": string
         }}
         Set score to 0.0–0.2 since they didn’t answer.
-        Set newDifficulty to max(1, currentDifficulty-1).
+        Set newDifficulty to max(1, {difficulty} - 1)
         """
             completion = client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -526,12 +551,7 @@ def dialog():
             # (TTS same as usual)
             return jsonify(response_data)
 
-        # Context
-        difficulty = clamp_int(ctx.get("difficulty", 1), 1, 5, 1)
-        total_points = clamp_int(ctx.get("points", 0), 0, 100000, 0)
-        target_word = truncate(ctx.get("targetWord", ""), 64)
-        analysis_text = truncate(ctx.get("analysisText", ""), 2000)
-        current_question = truncate(ctx.get("currentQuestion", ""), 500)
+ 
 
         fft = ctx.get("fft")
         fft_preview = fft[:40] if isinstance(fft, list) else None
