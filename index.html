@@ -1359,8 +1359,10 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            word: word,
-            frequencies: Array.from(freqSnapshot).slice(0, 40)
+            word,
+            frequencies: Array.from(freqSnapshot).slice(0, 40),
+            sampleRate: state.audioCtx.sampleRate,
+            fftSize: state.analyser.fftSize
           })
         });
 
@@ -2374,7 +2376,9 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         word: word,
-        frequencies: Array.from(pending.freq).slice(0, 40)
+        frequencies: Array.from(pending.freq).slice(0, 40),
+        sampleRate: state.audioCtx.sampleRate,
+        fftSize: state.analyser.fftSize
       })
     });
 
