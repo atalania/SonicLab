@@ -168,10 +168,11 @@ def is_idk(text: str) -> bool:
 # =========================================================
 # Spectral Metrics
 # =========================================================
-def analyze_frequency_spectrum(freq_values: List[int], word: str) -> Dict[str, Any]:
+def analyze_frequency_spectrum(freq_values: List[int], word: str, sample_rate: float = 44100, fft_size: int = 1024) -> Dict[str, Any]:
     if not freq_values:
         return {
             "dominant_bin": 0,
+            "dominant_hz": 0,
             "dominant_region": "unknown",
             "avg_amplitude": 0,
             "max_amplitude": 0,
@@ -185,13 +186,17 @@ def analyze_frequency_spectrum(freq_values: List[int], word: str) -> Dict[str, A
     dominant_bin = freq_values.index(max_amplitude)
     avg_amplitude = sum(freq_values) / len(freq_values)
 
-    total_bins = len(freq_values)
-    if dominant_bin < total_bins * 0.33:
-        dominant_region = "Low Frequency (Bass)"
-    elif dominant_bin < total_bins * 0.66:
-        dominant_region = "Mid Frequency (Voice)"
+    hz_per_bin = sample_rate / fft_size
+    dominant_hz = dominant_bin * hz_per_bin
+
+    if dominant_hz < 300:
+        dominant_region = "low-frequency range"
+    elif dominant_hz < 1200:
+        dominant_region = "mid-frequency range"
     else:
-        dominant_region = "High Frequency (Treble)"
+        dominant_region = "high-frequency range"
+
+    total_bins = len(freq_values)
 
     low_energy = sum(freq_values[: int(total_bins * 0.33)])
     mid_energy = sum(freq_values[int(total_bins * 0.33) : int(total_bins * 0.66)])
@@ -220,6 +225,7 @@ def analyze_frequency_spectrum(freq_values: List[int], word: str) -> Dict[str, A
 
     return {
         "dominant_bin": int(dominant_bin),
+        "dominant_hz": round(dominant_hz, 2),
         "dominant_region": dominant_region,
         "avg_amplitude": round(avg_amplitude, 2),
         "max_amplitude": int(max_amplitude),
@@ -232,15 +238,16 @@ def analyze_frequency_spectrum(freq_values: List[int], word: str) -> Dict[str, A
 
 def generate_lab_report_prompt(word: str, freq_values: List[int], m: Dict[str, Any]) -> str:
     return f"""
-You are a Physics + Signal Processing tutor. Write a mini lab report for a high-school student.
+    You are a physics + signal-processing tutor.
+    Do not infer exact vocal pitch from FFT bin position alone.
 
-Word spoken: "{word}"
+    Word spoken: "{word}"
 
 FFT magnitudes (0-255), first 40 bins:
 {freq_values[:40]}
 
 Computed metrics:
-- Dominant bin: {m['dominant_bin']} ({m['dominant_region']})
+- Dominant bin: {m['dominant_bin']} (~{m['dominant_hz']} Hz, {m['dominant_region']})
 - Avg amplitude: {m['avg_amplitude']}
 - Max amplitude: {m['max_amplitude']}
 - Peakiness (max/avg): {m['peakiness']}
@@ -251,7 +258,7 @@ Computed metrics:
 Return STRICT JSON:
 {{
   "summary": "1 sentence in plain language",
-  "what_it_means": "1–2 sentences linking metrics to speech properties (pitch, vowels vs consonants, noise vs tone)",
+  "what_it_means": "1–2 sentences linking metrics to spectral energy distribution, resonance, and tonal vs noisy characteristics. Do not claim exact pitch from FFT bin position alone.",
   "try_this": "1 short experiment the student can do (e.g., whisper, pitch up, louder)",
   "vocab": {{
     "term": "one key term like 'harmonics' or 'formants' or 'spectral centroid'",
@@ -363,7 +370,10 @@ def analyze_sound():
         if not is_valid:
             return jsonify({"error": "Invalid frequency data. Must be array of numbers."}), 400
 
-        metrics = analyze_frequency_spectrum(freq_values, word)
+        sample_rate = clamp_float(data.get("sampleRate", 44100), 8000, 96000, 44100)
+        fft_size = clamp_int(data.get("fftSize", 1024), 256, 8192, 1024)
+
+        metrics = analyze_frequency_spectrum(freq_values, word, sample_rate, fft_size)
         prompt = generate_lab_report_prompt(word, freq_values, metrics)
 
         completion = client.chat.completions.create(
@@ -376,6 +386,7 @@ def analyze_sound():
                     "content": (
                         "You are a physics + signal-processing tutor. "
                         "You output STRICT JSON only, no markdown."
+                        "Do not infer exact vocal pitch from FFT bin position alone."
                     ),
                 },
                 {"role": "user", "content": prompt},
