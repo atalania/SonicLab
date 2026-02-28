@@ -920,6 +920,27 @@
     </div>
   </div>
 
+<div id="labelModal" class="hidden" style="
+  position:fixed; inset:0; background:rgba(0,0,0,.65);
+  display:none; align-items:center; justify-content:center; z-index:9999;">
+  <div style="background:#121212; border:1px solid #333; border-radius:12px; padding:18px; width:min(520px,92vw);">
+    <h3 style="margin:0 0 10px 0; color:#00d4ff;">Captured! What word was that?</h3>
+    <p style="margin:0 0 12px 0; color:#aaa; font-size:.9rem;">If this was accidental, hit Retry or Cancel.</p>
+
+    <input id="modalWordInput" placeholder="Type word (e.g., HELLO)" maxlength="20"
+      style="width:100%; padding:12px 14px; border-radius:8px; border:2px solid #333; background:#222; color:white; font-weight:bold; font-size:16px;" />
+
+    <div style="display:flex; gap:10px; margin-top:14px;">
+      <button id="modalSaveBtn" class="success" style="flex:1;">💾 Save</button>
+      <button id="modalRetryBtn" class="secondary" style="flex:1;">🔁 Retry</button>
+      <button id="modalCancelBtn" class="secondary" style="flex:1;">✖ Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // all your JS
+</script>
   <script>
     // ============================================
     // CONFIGURATION
@@ -974,25 +995,6 @@
 
   state.pendingCapture = null;
 
-    <div id="labelModal" class="hidden" style="
-  position:fixed; inset:0; background:rgba(0,0,0,.65);
-  display:none; align-items:center; justify-content:center; z-index:9999;">
-  <div style="background:#121212; border:1px solid #333; border-radius:12px; padding:18px; width:min(520px,92vw);">
-    <h3 style="margin:0 0 10px 0; color:#00d4ff;">Captured! What word was that?</h3>
-    <p style="margin:0 0 12px 0; color:#aaa; font-size:.9rem;">
-      If this was accidental, hit Retry or Cancel.
-    </p>
-
-    <input id="modalWordInput" placeholder="Type word (e.g., HELLO)" maxlength="20"
-      style="width:100%; padding:12px 14px; border-radius:8px; border:2px solid #333; background:#222; color:white; font-weight:bold; font-size:16px;" />
-
-    <div style="display:flex; gap:10px; margin-top:14px;">
-      <button id="modalSaveBtn" class="success" style="flex:1;">💾 Save</button>
-      <button id="modalRetryBtn" class="secondary" style="flex:1;">🔁 Retry</button>
-      <button id="modalCancelBtn" class="secondary" style="flex:1;">✖ Cancel</button>
-    </div>
-  </div>
-  </div>
 
     // ============================================
     // DOM
