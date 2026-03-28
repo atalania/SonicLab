@@ -1,5 +1,6 @@
-export const API_URL    = 'https://soniclab-zoa0.onrender.com/analyze-sound';
-export const DIALOG_URL = 'https://soniclab-zoa0.onrender.com/dialog';
+const BASE = window.location.origin;
+export const API_URL    = `${BASE}/analyze-sound`;
+export const DIALOG_URL = `${BASE}/dialog`;
 
 export const FFT_SIZE  = 2048;
 export const SMOOTHING = 0.3;

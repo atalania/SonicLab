@@ -24,7 +24,7 @@ import random
 from typing import Any, Dict, List, Tuple
 from datetime import datetime
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -44,6 +44,7 @@ logger = logging.getLogger(__name__)
 # =========================================================
 # Flask App
 # =========================================================
+STATIC_DIR = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 3 * 1024 * 1024  # 3 MB for audio files
 
@@ -393,6 +394,21 @@ def get_next_question(difficulty: int) -> str:
 # Routes
 # =========================================================
 @app.route("/", methods=["GET"])
+def serve_index():
+    return send_from_directory(STATIC_DIR, "index.html")
+
+
+@app.route("/css/<path:filename>")
+def serve_css(filename):
+    return send_from_directory(os.path.join(STATIC_DIR, "css"), filename)
+
+
+@app.route("/js/<path:filename>")
+def serve_js(filename):
+    return send_from_directory(os.path.join(STATIC_DIR, "js"), filename)
+
+
+@app.route("/health", methods=["GET"])
 def health_check():
     return jsonify(
         {

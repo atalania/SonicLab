@@ -7,7 +7,7 @@ import { addToGallery, closeAnalysisModal } from './gallery.js';
 import { startRound, redrawMystery } from './challenge.js';
 import { unlockAudioForiOS, startRecording, stopRecordingAndSend } from './dialog.js';
 import { loadFromLocalStorage, clearSavedData } from './storage.js';
-import { initPortal, fireLabStart, fireRecapRequest } from './portal.js';
+import { initPortal, fireLabStart } from './portal.js';
 
 // ── Navigation ───────────────────────────────────────
 
@@ -148,13 +148,6 @@ el.resetLabBtn.addEventListener('click', () => {
     location.reload();
   }
 });
-
-// ── Ask Tutor (portal recap) ─────────────────────────
-
-const recapLabBtn = document.getElementById('recapLabBtn');
-const recapChallengeBtn = document.getElementById('recapChallengeBtn');
-if (recapLabBtn) recapLabBtn.addEventListener('click', fireRecapRequest);
-if (recapChallengeBtn) recapChallengeBtn.addEventListener('click', fireRecapRequest);
 
 // ── Init ─────────────────────────────────────────────
 
