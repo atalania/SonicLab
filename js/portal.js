@@ -6,7 +6,7 @@
 
 import { state } from './state.js';
 
-const GAME_ID = 'sonic-lab';
+const GAME_ID = 'sonic-fingerprint-lab';
 const IDLE_TIMEOUT_MS = 120_000;
 
 let problemStartTime = Date.now();
