@@ -1,30 +1,28 @@
-/**
- * Portal integration — sends GameEvent objects to the parent wiki's
- * AssistantProvider via postMessage (Path A from the integration guide).
- *
- * The parent wiki's <GameIframeBridge> listens for messages with
- * type: "ASSISTANT_GAME_EVENT" and routes the payload to the AI tutors.
- */
+// ============================================================================
+// js/portal.js
+// Sends game events to the LLNL STEM Games portal via postMessage.
+// Works silently when not inside an iframe (standalone dev mode).
+// ============================================================================
+
 import { state } from './state.js';
 
 const GAME_ID = 'sonic-lab';
 const IDLE_TIMEOUT_MS = 120_000;
 
-let roundStartTime = Date.now();
-let challengeHintsUsed = 0;
+let problemStartTime = Date.now();
+let hintCount = 0;
 let idleTimer = null;
 
-// ── Core sender ──────────────────────────────────────
-
-function send(eventData) {
-  window.parent.postMessage({
-    type: 'ASSISTANT_GAME_EVENT',
-    payload: eventData,
-  }, '*');
+function elapsed() {
+  return Math.round((Date.now() - problemStartTime) / 1000);
 }
 
-function elapsed() {
-  return Math.floor((Date.now() - roundStartTime) / 1000);
+function sendToPortal(payload) {
+  if (window.parent === window) {
+    console.debug('[SonicLab Bridge]', payload.eventType, payload);
+    return;
+  }
+  window.parent.postMessage({ type: 'ASSISTANT_GAME_EVENT', payload }, '*');
 }
 
 function currentLevel() {
@@ -33,21 +31,12 @@ function currentLevel() {
     : 'lab';
 }
 
-// ── Timer helpers ────────────────────────────────────
-
-export function resetTimer() {
-  roundStartTime = Date.now();
-}
-
-export function resetChallengeHints() {
-  challengeHintsUsed = 0;
-}
-
 // ── Lab events ───────────────────────────────────────
 
 export function fireLabStart() {
-  resetTimer();
-  send({
+  problemStartTime = Date.now();
+  hintCount = 0;
+  sendToPortal({
     gameId: GAME_ID,
     levelId: 'lab',
     eventType: 'level_start',
@@ -58,12 +47,12 @@ export function fireLabStart() {
 }
 
 export function fireCaptureComplete(word, features) {
-  send({
+  sendToPortal({
     gameId: GAME_ID,
     levelId: 'lab',
     eventType: 'correct_submission',
     targetConcept: 'spectral_analysis',
-    playerAnswer: word,
+    playerAnswer: String(word),
     hintCount: 0,
     timeSpentSeconds: elapsed(),
     additionalContext: features ? {
@@ -77,7 +66,7 @@ export function fireCaptureComplete(word, features) {
 }
 
 export function fireDatasetComplete() {
-  send({
+  sendToPortal({
     gameId: GAME_ID,
     levelId: 'lab',
     eventType: 'level_complete',
@@ -94,9 +83,9 @@ export function fireDatasetComplete() {
 // ── Challenge events ─────────────────────────────────
 
 export function fireChallengeStart(roundNum) {
-  resetTimer();
-  challengeHintsUsed = 0;
-  send({
+  problemStartTime = Date.now();
+  hintCount = 0;
+  sendToPortal({
     gameId: GAME_ID,
     levelId: `challenge-round-${roundNum}`,
     eventType: 'level_start',
@@ -107,72 +96,54 @@ export function fireChallengeStart(roundNum) {
 }
 
 export function fireChallengeCorrect(playerWord) {
-  send({
+  sendToPortal({
     gameId: GAME_ID,
     levelId: currentLevel(),
     eventType: 'correct_submission',
     targetConcept: 'spectral_pattern_recognition',
-    playerAnswer: playerWord,
-    correctAnswer: state.currentTarget?.word,
-    hintCount: challengeHintsUsed,
+    playerAnswer: String(playerWord),
+    correctAnswer: state.currentTarget?.word != null
+      ? String(state.currentTarget.word) : undefined,
+    hintCount,
     timeSpentSeconds: elapsed(),
   });
 }
 
 export function fireChallengeIncorrect(playerWord, correctWord) {
-  send({
+  sendToPortal({
     gameId: GAME_ID,
     levelId: currentLevel(),
     eventType: 'incorrect_submission',
     targetConcept: 'spectral_pattern_recognition',
     mistakeCategory: 'spectral_confusion',
-    playerAnswer: playerWord,
-    correctAnswer: correctWord,
-    hintCount: challengeHintsUsed,
+    playerAnswer: String(playerWord),
+    correctAnswer: String(correctWord),
+    hintCount,
     timeSpentSeconds: elapsed(),
   });
 }
 
 export function fireHintViewed() {
-  challengeHintsUsed++;
-  send({
+  hintCount++;
+  sendToPortal({
     gameId: GAME_ID,
     levelId: currentLevel(),
     eventType: 'hint_request',
     targetConcept: 'spectral_pattern_recognition',
-    hintCount: challengeHintsUsed,
+    hintCount,
     timeSpentSeconds: elapsed(),
-  });
-}
-
-// ── General events ───────────────────────────────────
-
-export function fireRecapRequest() {
-  send({
-    gameId: GAME_ID,
-    levelId: currentLevel(),
-    eventType: 'recap_request',
-    targetConcept: 'spectral_analysis',
-    hintCount: challengeHintsUsed,
-    timeSpentSeconds: elapsed(),
-    additionalContext: {
-      wordsCollected: state.library.length,
-      score: state.score,
-      difficulty: state.difficulty,
-      points: state.points,
-    },
   });
 }
 
 // ── Idle detection ───────────────────────────────────
 
 function onIdle() {
-  send({
+  sendToPortal({
     gameId: GAME_ID,
     levelId: currentLevel(),
     eventType: 'idle_nudge',
     targetConcept: 'spectral_analysis',
-    hintCount: challengeHintsUsed,
+    hintCount,
     timeSpentSeconds: elapsed(),
   });
 }

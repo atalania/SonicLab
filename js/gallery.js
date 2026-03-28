@@ -73,14 +73,12 @@ export function showAnalysisModal(index) {
   el.analysisSpectrogram.height = item.img.height;
   sCtx.drawImage(item.img, 0, 0);
 
-  drawSpectrumChart(el.analysisSpectrum, item);
-
   const f = item.features;
   if (!f) {
     el.analysisFeatures.innerHTML = '<div style="color:var(--muted);font-family:var(--font-mono);font-size:.8rem;">Feature data not available — re-capture this word for full analysis.</div>';
     el.analysisBands.innerHTML = '';
     el.analysisDominant.innerHTML = '';
-    el.analysisEducational.innerHTML = '<strong>Note</strong>Re-capture this word to see full analysis.';
+    el.analysisEducational.innerHTML = '<strong>Note:</strong> Re-capture this word to see full analysis.';
   } else {
     const features = [
       { value: f.pitchHz > 30 ? `${Math.round(f.pitchHz)} Hz` : 'N/A', label: 'Pitch (F0)', desc: 'Fundamental frequency — rate of vocal fold vibration' },
@@ -131,6 +129,7 @@ export function showAnalysisModal(index) {
     : '';
 
   el.analysisModal.classList.add('visible');
+  requestAnimationFrame(() => drawSpectrumChart(el.analysisSpectrum, item));
 }
 
 export function closeAnalysisModal() {
@@ -159,7 +158,7 @@ function drawSpectrumChart(canvas, item) {
     return;
   }
 
-  const sr = 48000;
+  const sr = state.audioCtx?.sampleRate || 48000;
   const binWidth = sr / FFT_SIZE;
   const maxBin = Math.min(mags.length, Math.floor(8000 / binWidth));
   const barW = w / maxBin;
