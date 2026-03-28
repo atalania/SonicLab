@@ -5,6 +5,7 @@ import { computeAllFeatures, generateEducationalNote } from './dsp.js';
 import { showStatus, updateProgress, updateStats } from './ui.js';
 import { addToGallery } from './gallery.js';
 import { saveToLocalStorage } from './storage.js';
+import { fireCaptureComplete, fireDatasetComplete } from './portal.js';
 
 export function openLabelModal() {
   el.labelModal.classList.add('visible');
@@ -121,6 +122,8 @@ export async function captureWord() {
 
   addToGallery(word, snap, state.library.length - 1);
   updateProgress();
+  fireCaptureComplete(word, features);
+  if (state.library.length === 4) fireDatasetComplete();
   el.wordInput.value = '';
   el.captureBtn.disabled = false;
   el.recordingIndicator.classList.remove('active');
@@ -148,6 +151,8 @@ export async function savePendingCapture(word) {
   addToGallery(word, pending.img, state.library.length - 1);
   updateProgress();
   updateStats();
+  fireCaptureComplete(word, pending.features);
+  if (state.library.length === 4) fireDatasetComplete();
   el.recordingIndicator.classList.remove('active');
   if (state.library.length === 1) el.statsBar.style.display = 'flex';
   saveToLocalStorage();

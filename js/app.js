@@ -7,6 +7,7 @@ import { addToGallery, closeAnalysisModal } from './gallery.js';
 import { startRound, redrawMystery } from './challenge.js';
 import { unlockAudioForiOS, startRecording, stopRecordingAndSend } from './dialog.js';
 import { loadFromLocalStorage, clearSavedData } from './storage.js';
+import { initPortal, fireLabStart, fireRecapRequest } from './portal.js';
 
 // ── Navigation ───────────────────────────────────────
 
@@ -33,6 +34,7 @@ function switchToLab() {
   el.challengeSection.style.display = 'none';
   el.labSection.style.display = '';
   state.currentTarget = null;
+  fireLabStart();
   requestAnimationFrame(() => {
     fitCanvas(el.liveCanvas, liveCtx);
     fitCanvas(el.mysteryCanvas, mysteryCtx);
@@ -147,6 +149,13 @@ el.resetLabBtn.addEventListener('click', () => {
   }
 });
 
+// ── Ask Tutor (portal recap) ─────────────────────────
+
+const recapLabBtn = document.getElementById('recapLabBtn');
+const recapChallengeBtn = document.getElementById('recapChallengeBtn');
+if (recapLabBtn) recapLabBtn.addEventListener('click', fireRecapRequest);
+if (recapChallengeBtn) recapChallengeBtn.addEventListener('click', fireRecapRequest);
+
 // ── Init ─────────────────────────────────────────────
 
 (async () => {
@@ -168,5 +177,6 @@ el.resetLabBtn.addEventListener('click', () => {
     showStatus(`✓ Restored ${data.items.length} word(s) from previous session`, 'success');
     setTimeout(() => showStatus('Ready to capture more words or enter Challenge Mode!', 'info'), 3000);
   }
+  initPortal();
   console.log('🧬 Sonic Fingerprint Lab v3.0 — Modular architecture ready');
 })();

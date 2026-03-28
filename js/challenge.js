@@ -3,6 +3,7 @@ import { el, mysteryCtx, fitCanvas } from './dom.js';
 import { generateEducationalNote } from './dsp.js';
 import { updateMeter, updateStats } from './ui.js';
 import { saveToLocalStorage } from './storage.js';
+import { fireChallengeStart, fireChallengeCorrect, fireChallengeIncorrect, fireHintViewed } from './portal.js';
 
 const QUESTIONS = {
   1: ['What happens to the spectral pattern when you speak the same word louder?',
@@ -58,6 +59,7 @@ export function startRound() {
   });
 
   state.totalRounds++;
+  fireChallengeStart(state.totalRounds);
   updateMeter(0);
 }
 
@@ -67,12 +69,15 @@ function checkAnswer(word) {
 
   if (correct) {
     state.score++;
+    fireChallengeCorrect(word);
     el.feedback.textContent = '✓ CORRECT — Great pattern recognition!';
     el.feedback.className = 'feedback-box correct';
   } else {
+    fireChallengeIncorrect(word, state.currentTarget.word);
     el.feedback.textContent = `✕ INCORRECT — The answer was "${state.currentTarget.word}"`;
     el.feedback.className = 'feedback-box incorrect';
     el.challengeHint.classList.remove('hidden');
+    fireHintViewed();
     el.hintText.textContent = state.currentTarget.features
       ? generateEducationalNote(state.currentTarget.features)
       : state.currentTarget.analysis;
