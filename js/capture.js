@@ -1,4 +1,4 @@
-import { API_URL } from './config.js';
+import { analyzeSound } from './ai.js';
 import { state } from './state.js';
 import { el, liveCtx } from './dom.js';
 import { computeAllFeatures, generateEducationalNote } from './dsp.js';
@@ -65,13 +65,7 @@ function buildApiPayload(word, freq, features) {
 
 async function fetchAnalysis(word, freq, features) {
   try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(buildApiPayload(word, freq, features))
-    });
-    if (!res.ok) throw new Error('Server error');
-    const data = await res.json();
+    const data = await analyzeSound(buildApiPayload(word, freq, features));
     showStatus(`✓ Analysis complete for "${word}"`, 'success');
     setTimeout(() => showStatus(data.analysis, 'analysis'), 500);
     return data.analysis;
