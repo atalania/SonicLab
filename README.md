@@ -1,168 +1,154 @@
-# 🧬 Sonic Fingerprint Lab 
+# 🧬 Sonic Fingerprint Lab
 
 An interactive, web-based STEM mini-game where students **visualize their voice as a scrolling spectrogram (“waterfall plot”)** and learn how sound patterns relate to **frequency, energy, and speech acoustics**. Players build a small dataset of spoken words, then enter a challenge mode to identify a **mystery pattern** and answer an **AI oral quiz**.
+
+The current codebase is **v3.0** (modular vanilla JS): richer **live acoustic readouts**, **optional auto-capture**, a deep **pattern detail** view, and AI features that call a **host-provided HTTP proxy** (no API keys in the browser). When embedded in the LLNL STEM Games portal, it also emits **analytics events** via `postMessage`.
 
 ---
 
 ## ✨ Features
 
 ### Lab Mode (Build Your Dataset)
-- Live **waterfall spectrogram** visualization using the **Web Audio API**
-- Capture a word + snapshot its spectrogram + store FFT magnitude data
-- AI-generated “Lab Report” explaining the captured spectrum (via Flask proxy)
-- Gallery of captured words with **delete** + **details popup**
-- Progress bar + basic stats UI
+- Live **waterfall spectrogram** (Web Audio API, FFT **2048**, smoothing), **frequency axis** labels, and **DPR-aware** canvas
+- **Live readouts** while the mic is active: estimated **pitch (F0)**, **spectral centroid**, **energy (RMS dB)**, **spectral flatness**, **bandwidth**, **spectral rolloff**
+- **Manual capture:** type a word, then **📸 Capture** — snapshot, averaged spectrum, and full **DSP feature** set
+- **Auto Capture (🤖 Auto):** voice-activity detection freezes a snapshot and opens a **label modal** so you name the word after speaking
+- **AI Lab Report** via `gpt-4o-mini`: structured JSON (**summary**, **what_it_means**, **try_this**, **vocab**) with conservative wording (pitch vs. FFT energy, clarity thresholds); merged into readable on-screen text
+- Payload includes **sample rate**, **FFT size**, **pitch estimate + clarity**, **centroid / bandwidth / rolloff / flatness**, **per-band energies**, **dominant peaks**, and **formant estimates** for richer tutoring
+- **Offline fallback** if the AI proxy is unreachable: local **educational note** from computed features
+- **Gallery** of captured words: delete, click for **analysis modal** (snapshot, spectrum chart, feature grid, band distribution, dominant frequencies, note + AI text)
+- **Dataset progress** (0/4), **stats ribbon** (words, challenge **score**, oral-quiz **level**), **🔄 Reset** (clears saved data after confirm)
 
 ### Challenge Mode (Test Pattern Recognition)
-- Mystery spectrogram picked from your dataset
-- Multiple-choice word identification
-- **Live voice match meter** (cosine similarity vs. target FFT)
-- “AI Lab Report” hint appears after incorrect guesses
+- Mystery spectrogram from your library; **multiple-choice** word pick
+- **Live Voice Match** meter (cosine similarity vs. target spectrum)
+- **AI Lab Report** hint after incorrect guesses (tracks **hint** events for the portal)
 
 ### AI Oral Quiz (Voice → Feedback + Follow-up Question)
-- Hold-to-record voice answers (pointer events for mobile reliability)
-- Backend transcription with **Whisper**
-- Tutor-style evaluation with **difficulty progression** and **points**
-- Optional **TTS** responses + a manual **Replay Audio** button (mobile-friendly)
+- **Hold-to-talk** using **pointer events** (mobile-friendly)
+- Transcription through **`whisper-1`** on the host proxy
+- Tutor evaluation: **difficulty 1–5**, **rubric-based points**, **follow-up questions**, and **conversation history** (recent turns sent with each request; a slice persisted in **localStorage**)
+- Special path when the student says they **don’t know**: stepped teaching JSON (**Step 1…5**), lower score, easier difficulty
+- Feedback is **text-first** on-screen; **🔊 Play Audio** / iOS **audio unlock** helpers remain in the UI for hosts that attach spoken playback later
 
 ### Persistence
-- Saves your dataset + stats to **localStorage** so progress survives refreshes
+- **localStorage** (`sonic-fingerprint-lab-data`, schema **v2**): library entries (image, FFT bytes, **float magnitudes**, **features**, analysis text), challenge score, quiz **difficulty**, **points**, and **dialog history**
+
+### Portal / embed (optional)
+- When running **inside an iframe**, sends `postMessage` payloads (`type: 'ASSISTANT_GAME_EVENT'`) for **level start/complete**, **captures**, **correct/incorrect** challenge answers, **hints**, and **idle nudge** (2-minute idle timer)
+- Standalone dev: events are logged to the console only
 
 ---
 
 ## 🔬 STEM Concepts Explored
-- **Frequency vs. time (spectrograms):** how energy changes across frequency bins over time  
-- **Speech acoustics:** vowels (harmonic/formant energy) vs consonants (noise/fricatives)  
-- **Signal processing:** FFT bins, amplitude/energy distribution, similarity matching  
-- **AI in STEM:** using models to generate explanations, evaluate oral responses, and scaffold learning
+- **Time–frequency views:** scrolling spectrogram; energy vs. frequency bin over time  
+- **Timbral / spectral measures:** centroid, spread, flatness, rolloff, bandwidth; **tonal vs. noise-like** intuition  
+- **Speech acoustics:** vowel energy / **formant-related** structure vs. noisy consonants  
+- **Pitch vs. spectrum:** fundamental-frequency estimate separate from where FFT energy peaks  
+- **Signal processing:** FFT bins, band energy breakdown, similarity (**cosine**) matching  
+- **AI in STEM:** model-generated lab reports, Whisper transcription, structured oral-quiz feedback with difficulty scaffolding  
 
 ---
 
 ## 🎮 How to Play
 
-1. **Start Microphone**
-   - Click **🎤 Start Microphone** and allow permissions.
-   - You’ll see the live scrolling spectrogram.
+1. **Start microphone**  
+   Click **🎤 Start Mic** and allow access. The live waterfall spectrum and readouts appear.
 
-2. **Capture Words**
-   - Type a word (ex: `HELLO`), say it, then click **📸 Capture & Analyze**.
-   - Repeat until you have **4 unique words** (minimum to enter Challenge Mode).
+2. **Capture four unique words**  
+   - **Manual:** type the word (e.g. `HELLO`), say it, click **📸 Capture**.  
+   - **Auto:** turn **🤖 Auto** **ON**, speak clearly; when the app freezes a snapshot, **label** it in the modal and **💾 Save**.  
+   Duplicates are rejected. Progress shows **n / 4**.
 
-3. **Enter Challenge Mode**
-   - Click **🎯 Enter Challenge Mode →**
-   - Identify which word produced the mystery spectrogram.
+3. **Enter Challenge Mode**  
+   Click **🎯 Enter Challenge Mode →**, pick the word that matches the **mystery** spectrum, and use the **Live Voice Match** meter.
 
-4. **Try the Oral Quiz**
-   - Hold **🎙️ Hold to Talk** and answer the AI’s question out loud.
-   - The AI evaluates your explanation, awards points, and asks a follow-up question.
+4. **Oral quiz**  
+   Hold **🎙️ Hold to Talk** to answer the question in **Next Question**. The AI scores you, adjusts level, adds points, and asks a follow-up. Use **Next Round →** for another mystery word.
+
+5. **Gallery details**  
+   Click any card to open the full **pattern analysis** view; use **×** on a card to remove a word from the dataset.
 
 ---
 
 ## 🛠️ Tech Stack
 
 **Frontend**
-- HTML5 / CSS3 / Vanilla JS
-- Web Audio API (real-time FFT + spectrogram rendering)
-- Canvas (DPR-safe rendering for retina/mobile)
+- HTML5 / CSS3 / **ES modules** (vanilla JS)
+- **Vite** 6 (dev server, production build)
+- Web Audio API (**AnalyserNode**, byte + float spectra, time domain)
+- Canvas (devicePixelRatio–aware sizing)
+- Client-side **DSP** (centroid, bandwidth, rolloff, flatness, RMS, peaks, formant-style tracking, band energies — see `js/dsp.js`, `js/config.js` **FREQ_BANDS**)
 
-**Backend**
-- Python + Flask
-- flask-cors (locked to allowed origins)
-- flask-limiter (rate limiting)
-- OpenAI API:
-  - `gpt-4o-mini` for analysis + tutoring
-  - `whisper-1` for transcription
-  - `tts-1` (optional) for voice playback
+**AI & transcription (via host proxy)**
+- `gpt-4o-mini` for lab reports and quiz grading (strict JSON prompts in `js/ai.js`)
+- `whisper-1` for speech-to-text  
+- The repository **does not** ship a Flask app; logic previously in Python is **ported to the client** except for calls that must stay server-side (**OpenAI proxy** on the embedding host).
 
-**Deployment**
-- Frontend: GitHub Pages  
-- Backend: Render  
-  - Base URL: `https://voicerecogprototypegame.onrender.com`
+**Deployment metadata**
+- `data/game.json` — `game-id`, title, copy, tags, embed height, version (used for Vite `base`: `/staticGames/<game-id>/`)
 
 ---
 
-## 🔌 API Endpoints
+## 🔌 Host API contract (embedding)
 
-### `POST /analyze-sound`
-Analyzes FFT magnitude preview and returns a short educational “Lab Report”.
+The game expects a same-origin (or CORS-allowed) backend that implements:
 
-Request (JSON):
-```json
-{
-  "word": "HELLO",
-  "frequencies": [0, 12, 53, ...]
-}
-```
+### `POST /api/ai/openai`
+OpenAI **Chat Completions**–style proxy. Request body (JSON) includes at least:
+- `model` (e.g. `gpt-4o-mini`)
+- `messages`
+- `max_tokens`, `temperature`
 
-Response (JSON):
-```json
-{
-  "analysis": "…",
-  "metrics": {
-    "dominant_bin": 12,
-    "dominant_region": "Mid Frequency (Voice)",
-    "avg_amplitude": 34.2,
-    "max_amplitude": 188,
-    "energy_distribution": { "low": 22.1, "mid": 61.3, "high": 16.6 }
-  }
-}
-```
+Response: standard OpenAI chat shape; the client reads `choices[0].message.content`.
 
-### `POST /dialog`
-Uploads recorded audio, transcribes it, evaluates the student’s spoken answer, updates difficulty/points, and optionally returns TTS audio.
+### `POST /api/ai/openai/whisper`
+**Multipart** form upload:
+- `file` — audio blob (e.g. `audio.webm`)
+- `model` — `whisper-1`
 
-Multipart form fields:
-- `audio`: recorded blob
-- `context`: JSON string with difficulty, points, target word, fft preview, etc.
+Response: JSON with a `text` field (transcript).
 
-### `GET /`
-Health check endpoint.
+### Local development proxy
+`vite.config.js` forwards **`/api`** to **`http://localhost:3000`**. Run your portal API (or a small mock) on that port, or change the proxy target.
+
+**Health check:** there is no longer a dedicated `GET /` in this repo; use your host service’s health endpoint.
 
 ---
 
 ## 🔒 Security Notes
 
-This project uses a **Flask proxy** so the OpenAI API key is **never exposed in the browser**.
-
-Backend protections include:
-- API key stored in server environment variables (`OPENAI_API_KEY`)
-- CORS restricted via `FRONTEND_ORIGINS`
-- Rate limiting via `flask-limiter`
-- Request size limit (3MB) for audio uploads
+- **API keys** belong only on the **server** that implements `/api/ai/*`, never in this static frontend.
+- Rate limits, CORS, and upload size limits are **the host’s responsibility** (this app sends short JSON and small audio clips; very short recordings under ~800 bytes are rejected client-side to avoid empty transcripts).
 
 ---
 
 ## 🚀 Local Development
 
-### 1) Run the backend (Flask)
+### 1) Install and run Vite
 ```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-
-export OPENAI_API_KEY="your_key"
-export FRONTEND_ORIGINS="http://localhost:5500,http://127.0.0.1:5500"
-export ENABLE_TTS="1"  # optional
-
-python app.py
+npm install
+npm run dev
 ```
+Open the URL Vite prints (default `http://localhost:5173`). Ensure something on **port 3000** serves `/api/ai/openai` and `/api/ai/openai/whisper`, or adjust `vite.config.js` → `server.proxy`.
 
-Backend defaults to port `10000` (or `$PORT`).
+### 2) Production build
+```bash
+npm run build
+npm run preview   # optional local preview of dist/
+```
+Built assets assume base path **`/staticGames/sonic-lab/`** (from `data/game.json`).
 
-### 2) Run the frontend
-Use any static server (VSCode Live Server works fine).  
-Make sure your frontend `API_URL` and `DIALOG_URL` point to your local Flask server if testing locally.
+### 3) Legacy Flask backend (optional)
+Older deployments used a separate Flask service (`POST /analyze-sound`, `POST /dialog`). The **current** game talks to **`/api/ai/*` only**; adapt or replace the old routes on your host if you still use them.
 
 ---
 
 ## 🧪 Tips / Known Constraints
 
-- You must capture **4 unique words** before Challenge Mode unlocks.
-- Mobile browsers can block autoplay audio; if TTS doesn’t play automatically, use **🔊 Play Audio**.
-- Very short recordings are rejected to avoid empty transcriptions.
+- **Four unique words** are required before Challenge Mode unlocks.
+- **Auto Capture** disables the manual word field and capture button while ON; turn it **OFF** to type words again.
+- **Mobile** browsers may block autoplay; spoken playback depends on host integration — primary feedback is always visible text.
+- Recordings shorter than **~800 bytes** are ignored with a “try again” style message.
+- **localStorage** quota: large datasets may hit browser limits; delete captures or use **Reset** if saving fails.
 
----
-
-## 📜 License
-Add your license here (MIT / Apache-2.0 / etc.).
