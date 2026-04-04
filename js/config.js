@@ -1,10 +1,3 @@
-const RENDER_HOST = 'https://soniclab-zoa0.onrender.com';
-const BASE = window.location.hostname.includes('onrender.com')
-  ? ''
-  : RENDER_HOST;
-export const API_URL    = `${BASE}/analyze-sound`;
-export const DIALOG_URL = `${BASE}/dialog`;
-
 export const FFT_SIZE  = 2048;
 export const SMOOTHING = 0.3;
 

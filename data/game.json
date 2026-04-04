@@ -1,0 +1,15 @@
+{
+  "game-id": "sonic-lab",
+  "title": "Sonic Fingerprint Lab",
+  "subject": "Science",
+  "description": "Explore audio patterns, frequencies, and voice-based analysis through an interactive sound lab.",
+  "longDescription": [
+    "Sonic Fingerprint Lab is an interactive science game where students explore how sound can be visualized, compared, and analyzed through frequency-based patterns. By using their own voice and recorded signals, players engage directly with the idea that every sound leaves behind a measurable acoustic signature.",
+    "The game introduces concepts such as pitch, waveform behavior, and frequency differences through hands-on experimentation rather than passive memorization. Students can observe how changes in sound input affect the resulting patterns, helping them build intuition for audio analysis in a more immediate and engaging way.",
+    "AI-assisted feedback helps interpret the player’s results, point out meaningful differences in their sound data, and guide them toward a stronger understanding of how frequency patterns relate to vocal and acoustic characteristics."
+  ],
+  "tags": ["physics", "sound", "frequency", "audio", "ai", "speech"],
+  "embedHeight": "100vh",
+  "featured": true,
+  "version": "1.0.0"
+}

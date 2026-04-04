@@ -1,4 +1,4 @@
-import { DIALOG_URL } from './config.js';
+import { dialog as callDialog } from './ai.js';
 import { state } from './state.js';
 import { el } from './dom.js';
 import { updateStats } from './ui.js';
@@ -120,14 +120,8 @@ export async function stopRecordingAndSend() {
     currentQuestion: el.nextQ.textContent
   };
 
-  const form = new FormData();
-  form.append('audio', blob, 'answer');
-  form.append('context', JSON.stringify(ctx));
-
   try {
-    const resp = await fetch(DIALOG_URL, { method: 'POST', body: form });
-    if (!resp.ok) throw new Error('Dialog request failed');
-    const data = await resp.json();
+    const data = await callDialog(blob, ctx);
 
     el.studentTranscript.textContent = data.transcript || '(no transcript)';
     el.aiReply.textContent = data.reply || '(no reply)';
@@ -140,10 +134,6 @@ export async function stopRecordingAndSend() {
 
     if (data.transcript) state.dialogHistory.push({ role: 'user', content: data.transcript });
     if (data.reply) state.dialogHistory.push({ role: 'assistant', content: data.reply });
-
-    if (data.ttsAudioBase64 && data.ttsMime) {
-      await playTtsResponse(data.ttsAudioBase64, data.ttsMime);
-    }
 
     updateStats();
     saveToLocalStorage();
