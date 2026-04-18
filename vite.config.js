@@ -26,7 +26,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     env: vitestEnvWithoutBrokenLocalStorage(),
-    setupFiles: ['./tests/setup-localstorage.js'],
+    setupFiles: ['./tests/setup-localstorage.js', './tests/setup-dom.js'],
     include: ['tests/**/*.test.js'],
     coverage: {
       provider: 'v8',

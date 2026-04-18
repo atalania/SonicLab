@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/46</span>
+                <span class='fraction'>46/46</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/1</span>
+                <span class='fraction'>13/13</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/1</span>
+                <span class='fraction'>4/4</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/46</span>
+                <span class='fraction'>46/46</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line low'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -109,98 +109,98 @@
 <a name='L44'></a><a href='#L44'>44</a>
 <a name='L45'></a><a href='#L45'>45</a>
 <a name='L46'></a><a href='#L46'>46</a>
-<a name='L47'></a><a href='#L47'>47</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >import { state } from './state.js';<span class="fstat-no" title="function not covered" ><span class="branch-0 cbranch-no" title="branch not covered" ></span></span></span>
-<span class="cstat-no" title="statement not covered" >import { el } from './dom.js';</span>
-<span class="cstat-no" title="statement not covered" ></span>
-<span class="cstat-no" title="statement not covered" >export function showStatus(msg, type = 'info') {</span>
-<span class="cstat-no" title="statement not covered" >  el.wordHint.textContent = msg;</span>
-<span class="cstat-no" title="statement not covered" >  if (type === 'loading') el.wordHint.classList.add('loading');</span>
-<span class="cstat-no" title="statement not covered" >  else el.wordHint.classList.remove('loading');</span>
-<span class="cstat-no" title="statement not covered" >}</span>
-<span class="cstat-no" title="statement not covered" ></span>
-<span class="cstat-no" title="statement not covered" >export function updateProgress() {</span>
-<span class="cstat-no" title="statement not covered" >  const count = state.library.length;</span>
-<span class="cstat-no" title="statement not covered" >  el.count.textContent = count;</span>
-<span class="cstat-no" title="statement not covered" >  el.statWords.textContent = count;</span>
-<span class="cstat-no" title="statement not covered" >  el.progressBar.style.width = (count / 4 * 100) + '%';</span>
-<span class="cstat-no" title="statement not covered" >  el.goToChallengeBtn.disabled = count &lt; 4;</span>
-<span class="cstat-no" title="statement not covered" ></span>
-<span class="cstat-no" title="statement not covered" >  if (count &gt;= 4) {</span>
-<span class="cstat-no" title="statement not covered" >    el.goToChallengeBtn.style.boxShadow = '0 0 20px rgba(200,80,255,.5)';</span>
-<span class="cstat-no" title="statement not covered" >    showStatus('✓ Dataset complete! Ready for Challenge Mode.', 'success');</span>
-<span class="cstat-no" title="statement not covered" >  }</span>
-<span class="cstat-no" title="statement not covered" >}</span>
-<span class="cstat-no" title="statement not covered" ></span>
-<span class="cstat-no" title="statement not covered" >export function updateStats() {</span>
-<span class="cstat-no" title="statement not covered" >  el.statScore.textContent = state.score;</span>
-<span class="cstat-no" title="statement not covered" >  el.statDifficulty.textContent = state.difficulty;</span>
-<span class="cstat-no" title="statement not covered" >  el.pts.textContent = state.points;</span>
-<span class="cstat-no" title="statement not covered" >}</span>
-<span class="cstat-no" title="statement not covered" ></span>
-<span class="cstat-no" title="statement not covered" >export function updateMeter(pct) {</span>
-<span class="cstat-no" title="statement not covered" >  el.aiPercent.textContent = pct;</span>
-<span class="cstat-no" title="statement not covered" >  el.aiMeterBar.style.width = pct + '%';</span>
-<span class="cstat-no" title="statement not covered" ></span>
-<span class="cstat-no" title="statement not covered" >  if (pct &gt; 80) {</span>
-<span class="cstat-no" title="statement not covered" >    el.aiMatchText.textContent = '✓ STRONG MATCH — spectral profiles align';</span>
-<span class="cstat-no" title="statement not covered" >    el.aiMatchText.style.color = 'var(--green)';</span>
-<span class="cstat-no" title="statement not covered" >  } else if (pct &gt; 50) {</span>
-<span class="cstat-no" title="statement not covered" >    el.aiMatchText.textContent = '~ PARTIAL MATCH — some spectral similarity detected';</span>
-<span class="cstat-no" title="statement not covered" >    el.aiMatchText.style.color = 'var(--cyan)';</span>
-<span class="cstat-no" title="statement not covered" >  } else if (pct &gt; 20) {</span>
-<span class="cstat-no" title="statement not covered" >    el.aiMatchText.textContent = '? WEAK MATCH — spectral profiles diverge';</span>
-<span class="cstat-no" title="statement not covered" >    el.aiMatchText.style.color = 'var(--amber)';</span>
-<span class="cstat-no" title="statement not covered" >  } else {</span>
-<span class="cstat-no" title="statement not covered" >    el.aiMatchText.textContent = '✕ NO MATCH — different spectral signatures';</span>
-<span class="cstat-no" title="statement not covered" >    el.aiMatchText.style.color = 'var(--muted)';</span>
-<span class="cstat-no" title="statement not covered" >  }</span>
-<span class="cstat-no" title="statement not covered" >}</span>
+<a name='L47'></a><a href='#L47'>47</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { state } from './state.js';
+import { el } from './dom.js';
+&nbsp;
+export function showStatus(msg, type = 'info') {
+  el.wordHint.textContent = msg;
+  if (type === 'loading') el.wordHint.classList.add('loading');
+  else el.wordHint.classList.remove('loading');
+}
+&nbsp;
+export function updateProgress() {
+  const count = state.library.length;
+  el.count.textContent = count;
+  el.statWords.textContent = count;
+  el.progressBar.style.width = (count / 4 * 100) + '%';
+  el.goToChallengeBtn.disabled = count &lt; 4;
+&nbsp;
+  if (count &gt;= 4) {
+    el.goToChallengeBtn.style.boxShadow = '0 0 20px rgba(200,80,255,.5)';
+    showStatus('✓ Dataset complete! Ready for Challenge Mode.', 'success');
+  }
+}
+&nbsp;
+export function updateStats() {
+  el.statScore.textContent = state.score;
+  el.statDifficulty.textContent = state.difficulty;
+  el.pts.textContent = state.points;
+}
+&nbsp;
+export function updateMeter(pct) {
+  el.aiPercent.textContent = pct;
+  el.aiMeterBar.style.width = pct + '%';
+&nbsp;
+  if (pct &gt; 80) {
+    el.aiMatchText.textContent = '✓ STRONG MATCH — spectral profiles align';
+    el.aiMatchText.style.color = 'var(--green)';
+  } else if (pct &gt; 50) {
+    el.aiMatchText.textContent = '~ PARTIAL MATCH — some spectral similarity detected';
+    el.aiMatchText.style.color = 'var(--cyan)';
+  } else if (pct &gt; 20) {
+    el.aiMatchText.textContent = '? WEAK MATCH — spectral profiles diverge';
+    el.aiMatchText.style.color = 'var(--amber)';
+  } else {
+    el.aiMatchText.textContent = '✕ NO MATCH — different spectral signatures';
+    el.aiMatchText.style.color = 'var(--muted)';
+  }
+}
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -208,7 +208,7 @@
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-04-18T01:54:05.042Z
+                at 2026-04-18T01:57:53.803Z
             </div>
         <script src="prettify.js"></script>
         <script>

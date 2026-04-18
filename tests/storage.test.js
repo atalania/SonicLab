@@ -75,6 +75,40 @@ describe('loadFromLocalStorage', () => {
   });
 });
 
+const TINY_PNG =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
+describe('loadFromLocalStorage (integration)', () => {
+  it('rehydrates a v2 snapshot with canvas thumbnails', async () => {
+    const payload = {
+      version: 2,
+      library: [
+        {
+          word: 'OK',
+          imgDataUrl: TINY_PNG,
+          freq: Array.from({ length: 64 }, (_, i) => (i * 3) % 256),
+          magnitudes: null,
+          features: null,
+          analysis: 'saved',
+          timestamp: '10:00:00',
+        },
+      ],
+      score: 1,
+      difficulty: 2,
+      points: 3,
+      dialogHistory: [{ role: 'user', content: 'hi' }],
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+
+    const data = await loadFromLocalStorage();
+    expect(data).not.toBeNull();
+    expect(data.items.length).toBe(1);
+    expect(data.items[0].word).toBe('OK');
+    expect(data.score).toBe(1);
+    expect(data.dialogHistory.length).toBe(1);
+  });
+});
+
 describe('saveToLocalStorage', () => {
   it('serializes library rows to localStorage', () => {
     state.score = 4;
