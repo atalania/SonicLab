@@ -10,6 +10,10 @@ function installCanvas2dPolyfill() {
   const proto = globalThis.HTMLCanvasElement?.prototype;
   if (!proto) return;
 
+  proto.toDataURL = function toDataURLPolyfill() {
+    return 'data:image/png;base64,AAAA';
+  };
+
   proto.getContext = function getContextPolyfill(type) {
     if (type !== '2d') return null;
     return {

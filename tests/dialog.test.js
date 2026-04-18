@@ -68,4 +68,19 @@ describe('dialog', () => {
     await stopRecordingAndSend();
     expect(el.talkBtn.textContent).toContain('Hold to Talk');
   });
+
+  it('stopRecordingAndSend warns when audio blob is too small', async () => {
+    state.currentTarget = { word: 'W', features: {} };
+    state.mediaRecorder = {
+      state: 'recording',
+      mimeType: 'audio/webm',
+      stop() {
+        this.state = 'inactive';
+        queueMicrotask(() => this.onstop?.());
+      },
+    };
+    state.audioChunks = [new Blob([new Uint8Array(10)], { type: 'audio/webm' })];
+    await stopRecordingAndSend();
+    expect(el.aiReply.textContent).toMatch(/didn|catch|louder/i);
+  });
 });

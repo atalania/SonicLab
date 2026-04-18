@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">96.36% </span>
+                <span class="strong">99.09% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>106/110</span>
+                <span class='fraction'>109/110</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">57.14% </span>
+                <span class="strong">72.72% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>12/21</span>
+                <span class='fraction'>16/22</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">96.36% </span>
+                <span class="strong">99.09% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>106/110</span>
+                <span class='fraction'>109/110</span>
             </div>
         
             
@@ -181,30 +181,30 @@
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">9x</span>
+<span class="cline-any cline-yes">9x</span>
+<span class="cline-any cline-yes">9x</span>
+<span class="cline-any cline-yes">9x</span>
+<span class="cline-any cline-yes">9x</span>
+<span class="cline-any cline-yes">9x</span>
+<span class="cline-any cline-yes">9x</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">7x</span>
+<span class="cline-any cline-yes">7x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">7x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -296,8 +296,8 @@ export function saveToLocalStorage() {
       word: item.word,
       imgDataUrl: item.img.toDataURL('image/png'),
       freq: Array.from(item.freq),
-      magnitudes: item.magnitudes ? Array.from(item.magnitudes) <span class="branch-0 cbranch-no" title="branch not covered" >: null,</span>
-      features: item.features <span class="branch-0 cbranch-no" title="branch not covered" >|| null,</span>
+      magnitudes: item.magnitudes ? Array.from(item.magnitudes) : null,
+      features: item.features || null,
       analysis: item.analysis,
       timestamp: item.timestamp
     }));
@@ -310,10 +310,10 @@ export function saveToLocalStorage() {
       dialogHistory: state.dialogHistory.slice(-20),
       savedAt: new Date().toISOString()
     }));
-  } <span class="branch-0 cbranch-no" title="branch not covered" >catch (err) {</span>
-<span class="cstat-no" title="statement not covered" >    console.error('Save error:', err);</span>
-<span class="cstat-no" title="statement not covered" >    if (err.name === 'QuotaExceededError') alert('Storage quota exceeded — try deleting some words.');</span>
-<span class="cstat-no" title="statement not covered" >  }</span>
+  } catch (err) {
+    console.error('Save error:', err);
+    if (err.name === 'QuotaExceededError') alert('Storage quota exceeded — try deleting some words.');
+  }
 }
 &nbsp;
 /**
@@ -400,7 +400,7 @@ export function clearSavedData() {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-04-18T01:57:53.757Z
+                at 2026-04-18T02:02:45.847Z
             </div>
         <script src="prettify.js"></script>
         <script>

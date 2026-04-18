@@ -76,4 +76,42 @@ describe('gallery', () => {
     closeAnalysisModal();
     expect(el.analysisModal.classList.contains('visible')).toBe(false);
   });
+
+  it('deleting a card removes it after confirm', () => {
+    const img = document.createElement('canvas');
+    img.width = 20;
+    img.height = 10;
+    state.library.push({
+      word: 'DEL',
+      img,
+      freq: new Uint8Array(8).fill(1),
+      magnitudes: new Float32Array(16).fill(0.01),
+      features: null,
+      analysis: '',
+      timestamp: '11:11:11',
+    });
+    addToGallery('DEL', img, 0);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const del = el.gallery.querySelector('.card-del');
+    del.click();
+    expect(state.library.length).toBe(0);
+    expect(el.gallery.querySelectorAll('.capture-card').length).toBe(0);
+  });
+
+  it('spectrum chart shows placeholder when magnitudes are missing', () => {
+    const img = document.createElement('canvas');
+    img.width = 16;
+    img.height = 8;
+    state.library.push({
+      word: 'NOM',
+      img,
+      freq: new Uint8Array(8).fill(1),
+      magnitudes: null,
+      features: { pitchHz: 0, spectralCentroid: 900, spectralBandwidth: 200, spectralRolloff: 1000, spectralFlatness: 0.1, rmsDb: -20, zcr: 0.01, pitchClarity: 0, dominantFreqs: [], formants: [] },
+      analysis: 'text',
+      timestamp: '12:12:12',
+    });
+    showAnalysisModal(0);
+    expect(el.analysisSpectrum.width).toBeGreaterThan(0);
+  });
 });

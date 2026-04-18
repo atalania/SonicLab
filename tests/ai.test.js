@@ -25,6 +25,22 @@ describe('getNextQuestion', () => {
 });
 
 describe('analyzeSound (integration)', () => {
+  it('handles empty frequency snapshots via conservative metrics', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      mockOpenAIResponse(
+        JSON.stringify({
+          summary: 'Empty bins',
+          what_it_means: 'Meaning',
+          try_this: 'Try',
+          vocab: { term: 't', definition: 'd' },
+        }),
+      ),
+    );
+    const result = await analyzeSound({ word: 'x', frequencies: [] });
+    expect(result.metrics.dominant_hz).toBe(0);
+    expect(result.report.summary).toBe('Empty bins');
+  });
+
   it('parses strict JSON from the proxy and returns structured analysis', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(
       mockOpenAIResponse(

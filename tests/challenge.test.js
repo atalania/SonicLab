@@ -76,6 +76,19 @@ describe('challenge', () => {
     expect(el.optionsContainer.querySelectorAll('.option-btn').length).toBeGreaterThanOrEqual(1);
   });
 
+  it('incorrect option click shows feedback and hint panel', () => {
+    for (const w of ['A', 'B', 'C', 'D']) state.library.push(makeLibraryWord(w));
+    startRound();
+    const correct = state.currentTarget.word;
+    const wrongBtn = [...el.optionsContainer.querySelectorAll('.option-btn')].find(
+      b => b.textContent !== correct,
+    );
+    expect(wrongBtn).toBeTruthy();
+    wrongBtn.click();
+    expect(el.feedback.className).toContain('incorrect');
+    expect(el.challengeHint.classList.contains('hidden')).toBe(false);
+  });
+
   it('redrawMystery draws current target spectrogram', () => {
     state.currentTarget = makeLibraryWord('Z');
     expect(() => redrawMystery()).not.toThrow();

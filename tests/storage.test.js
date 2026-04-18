@@ -110,6 +110,26 @@ describe('loadFromLocalStorage (integration)', () => {
 });
 
 describe('saveToLocalStorage', () => {
+  it('alerts when quota is exceeded', () => {
+    state.library.push({
+      word: 'BIG',
+      img: { toDataURL: () => 'data:image/png;base64,AAAA' },
+      freq: new Uint8Array([1]),
+      magnitudes: null,
+      features: null,
+      analysis: '',
+      timestamp: 't',
+    });
+    const err = new Error('quota');
+    err.name = 'QuotaExceededError';
+    vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+      throw err;
+    });
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+    saveToLocalStorage();
+    expect(alertSpy).toHaveBeenCalled();
+  });
+
   it('serializes library rows to localStorage', () => {
     state.score = 4;
     state.difficulty = 2;

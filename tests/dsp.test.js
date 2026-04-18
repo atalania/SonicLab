@@ -14,6 +14,7 @@ import {
   labelFrequency,
   generateEducationalNote,
   estimateFormants,
+  detectPitchAutocorrelation,
   SpectrumBuffer,
 } from '../js/dsp.js';
 import { FFT_SIZE } from '../js/config.js';
@@ -254,6 +255,25 @@ describe('estimateFormants', () => {
     if (f.length) {
       expect(f[0].freq).toBeLessThan(f[f.length - 1].freq);
     }
+  });
+});
+
+describe('detectPitchAutocorrelation', () => {
+  it('returns zeros when RMS is below threshold', () => {
+    const buf = new Float32Array(256).fill(0.0001);
+    const out = detectPitchAutocorrelation(buf, 48000);
+    expect(out.pitchHz).toBe(0);
+    expect(out.clarity).toBe(0);
+  });
+
+  it('returns a finite pitch estimate for a sine-like buffer', () => {
+    const buf = new Float32Array(2048);
+    for (let i = 0; i < buf.length; i++) {
+      buf[i] = 0.2 * Math.sin((2 * Math.PI * 200 * i) / 48000);
+    }
+    const out = detectPitchAutocorrelation(buf, 48000);
+    expect(out.pitchHz).toBeGreaterThan(0);
+    expect(out.clarity).toBeGreaterThan(0);
   });
 });
 

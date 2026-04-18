@@ -8,6 +8,7 @@ import {
   fireChallengeStart,
   fireChallengeIncorrect,
   fireHintViewed,
+  initPortal,
 } from '../js/portal.js';
 
 describe('portal bridge (integration)', () => {
@@ -129,5 +130,37 @@ describe('portal standalone (integration)', () => {
     fireLabStart();
     expect(debug).toHaveBeenCalled();
     debug.mockRestore();
+  });
+});
+
+describe('initPortal', () => {
+  let postMessage;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    postMessage = vi.fn();
+    Object.defineProperty(window, 'parent', {
+      value: { postMessage },
+      configurable: true,
+      writable: true,
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    Object.defineProperty(window, 'parent', {
+      value: window,
+      configurable: true,
+      writable: true,
+    });
+  });
+
+  it('registers idle timer and fires idle nudge', () => {
+    const addSpy = vi.spyOn(document, 'addEventListener');
+    initPortal();
+    expect(addSpy).toHaveBeenCalled();
+    vi.advanceTimersByTime(120_000);
+    expect(postMessage).toHaveBeenCalled();
+    addSpy.mockRestore();
   });
 });
