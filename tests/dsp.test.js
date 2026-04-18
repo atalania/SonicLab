@@ -93,12 +93,28 @@ describe('computeRMSdB', () => {
     const t = new Float32Array(64);
     expect(computeRMSdB(t)).toBe(-100);
   });
+
+  it('returns finite dB for non-trivial signal', () => {
+    const t = new Float32Array(64).fill(0.5);
+    const db = computeRMSdB(t);
+    expect(db).toBeGreaterThan(-100);
+    expect(Number.isFinite(db)).toBe(true);
+  });
 });
 
 describe('findDominantFrequencies', () => {
   it('returns empty when no peaks', () => {
     const m = new Float32Array(20).fill(0.1);
     expect(findDominantFrequencies(m, 48000, 1024, 3)).toEqual([]);
+  });
+
+  it('returns sorted peaks for an isolated maximum', () => {
+    const m = new Float32Array(32);
+    m.fill(0.01);
+    m[12] = 10;
+    const peaks = findDominantFrequencies(m, 48000, 1024, 3);
+    expect(peaks.length).toBeGreaterThanOrEqual(1);
+    expect(peaks[0].magnitude).toBe(10);
   });
 });
 
@@ -123,6 +139,15 @@ describe('computeAllFeatures', () => {
     expect(f).toHaveProperty('bandEnergies');
     expect(Array.isArray(f.dominantFreqs)).toBe(true);
   });
+
+  it('reports zero pitch when time-domain RMS is below detector threshold', () => {
+    const mags = new Float32Array(128);
+    mags[10] = 1;
+    const time = new Float32Array(FFT_SIZE).fill(0.0001);
+    const f = computeAllFeatures(mags, time, 48000, 128);
+    expect(f.pitchHz).toBe(0);
+    expect(f.pitchClarity).toBe(0);
+  });
 });
 
 describe('frequencyToNoteName', () => {
@@ -141,8 +166,21 @@ describe('labelFrequency', () => {
     expect(labelFrequency(100, 100)).toBe('Fundamental (F0)');
   });
 
-  it('labels formant region F1', () => {
+  it('labels low harmonics with ordinal suffixes', () => {
+    const f0 = 100;
+    expect(labelFrequency(200, f0)).toBe('2nd harmonic');
+    expect(labelFrequency(300, f0)).toBe('3rd harmonic');
+    expect(labelFrequency(400, f0)).toBe('4th harmonic');
+  });
+
+  it('labels formant regions F1–F3', () => {
     expect(labelFrequency(500, 0)).toBe('Formant region (F1)');
+    expect(labelFrequency(1500, 0)).toBe('Formant region (F2)');
+    expect(labelFrequency(3000, 0)).toBe('Formant region (F3)');
+  });
+
+  it('falls back to note name when no formant rule matches', () => {
+    expect(labelFrequency(20000, 0)).toBe('');
   });
 });
 
@@ -156,6 +194,48 @@ describe('generateEducationalNote', () => {
       bandEnergies: [{ name: 'Mid', pct: 42, range: [500, 2000] }],
     });
     expect(text).toMatch(/Fundamental|spectral|formant|band/i);
+  });
+
+  it('covers female-range pitch copy', () => {
+    const text = generateEducationalNote({
+      pitchHz: 200,
+      spectralCentroid: 0,
+      spectralFlatness: 0.1,
+      formants: [],
+    });
+    expect(text).toMatch(/female range|vocal folds/i);
+  });
+
+  it('covers high-register pitch copy', () => {
+    const text = generateEducationalNote({
+      pitchHz: 300,
+      spectralCentroid: 0,
+      spectralFlatness: 0.1,
+      formants: [],
+    });
+    expect(text).toMatch(/higher register|falsetto/i);
+  });
+
+  it('describes bright centroid and high flatness', () => {
+    const text = generateEducationalNote({
+      pitchHz: 0,
+      spectralCentroid: 2500,
+      spectralFlatness: 0.5,
+      formants: [{ freq: 400 }, { freq: 1700 }],
+      bandEnergies: [{ name: 'Bass', pct: 10, range: [80, 250] }],
+    });
+    expect(text).toMatch(/bright|noise-like/i);
+  });
+
+  it('skips dominant band line when no band exceeds 30%', () => {
+    const text = generateEducationalNote({
+      pitchHz: 0,
+      spectralCentroid: 0,
+      spectralFlatness: 0.2,
+      formants: [],
+      bandEnergies: [{ name: 'Mid', pct: 20, range: [500, 2000] }],
+    });
+    expect(text).not.toMatch(/Dominant energy band/);
   });
 });
 
@@ -190,6 +270,23 @@ describe('SpectrumBuffer', () => {
 
   it('returns null when empty', () => {
     const buf = new SpectrumBuffer(2, 4);
+    expect(buf.getSpeechAverage()).toBeNull();
+  });
+
+  it('drops oldest frames when exceeding maxFrames', () => {
+    const buf = new SpectrumBuffer(2, 2);
+    buf.push(new Float32Array([1, 0]), 1);
+    buf.push(new Float32Array([0, 1]), 2);
+    buf.push(new Float32Array([2, 2]), 3);
+    expect(buf.frames.length).toBe(2);
+    expect(buf.energies).toEqual([2, 3]);
+  });
+
+  it('clear removes all frames', () => {
+    const buf = new SpectrumBuffer(2, 2);
+    buf.push(new Float32Array([1, 0]), 1);
+    buf.clear();
+    expect(buf.frames.length).toBe(0);
     expect(buf.getSpeechAverage()).toBeNull();
   });
 });

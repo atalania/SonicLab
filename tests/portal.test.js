@@ -5,6 +5,9 @@ import {
   fireCaptureComplete,
   fireDatasetComplete,
   fireChallengeCorrect,
+  fireChallengeStart,
+  fireChallengeIncorrect,
+  fireHintViewed,
 } from '../js/portal.js';
 
 describe('portal bridge (integration)', () => {
@@ -73,5 +76,58 @@ describe('portal bridge (integration)', () => {
     expect(msg.payload.eventType).toBe('correct_submission');
     expect(msg.payload.correctAnswer).toBe('CAT');
     expect(msg.payload.levelId).toContain('challenge');
+  });
+
+  it('posts challenge start with round-specific level id', () => {
+    fireChallengeStart(2);
+    const msg = postMessage.mock.calls[0][0];
+    expect(msg.payload.eventType).toBe('level_start');
+    expect(msg.payload.levelId).toBe('challenge-round-2');
+    expect(msg.payload.targetConcept).toBe('spectral_pattern_recognition');
+  });
+
+  it('posts incorrect_submission with mistake metadata', () => {
+    state.currentTarget = { word: 'DOG' };
+    state.totalRounds = 1;
+    fireChallengeIncorrect('CAT', 'DOG');
+    const msg = postMessage.mock.calls[0][0];
+    expect(msg.payload.eventType).toBe('incorrect_submission');
+    expect(msg.payload.playerAnswer).toBe('CAT');
+    expect(msg.payload.correctAnswer).toBe('DOG');
+    expect(msg.payload.mistakeCategory).toBe('spectral_confusion');
+  });
+
+  it('increments hintCount across hint_request events', () => {
+    fireChallengeStart(1);
+    postMessage.mockClear();
+    fireHintViewed();
+    fireHintViewed();
+    expect(postMessage).toHaveBeenCalledTimes(2);
+    expect(postMessage.mock.calls[0][0].payload.hintCount).toBe(1);
+    expect(postMessage.mock.calls[1][0].payload.hintCount).toBe(2);
+  });
+
+  it('omits additionalContext when capture has no feature object', () => {
+    fireCaptureComplete('WORD', null);
+    const msg = postMessage.mock.calls[0][0];
+    expect(msg.payload.playerAnswer).toBe('WORD');
+    expect(msg.payload.additionalContext).toBeUndefined();
+  });
+});
+
+describe('portal standalone (integration)', () => {
+  beforeEach(() => {
+    Object.defineProperty(window, 'parent', {
+      value: window,
+      configurable: true,
+      writable: true,
+    });
+  });
+
+  it('logs bridge traffic when not embedded', () => {
+    const debug = vi.spyOn(console, 'debug').mockImplementation(() => {});
+    fireLabStart();
+    expect(debug).toHaveBeenCalled();
+    debug.mockRestore();
   });
 });

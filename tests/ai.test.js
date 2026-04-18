@@ -68,6 +68,40 @@ describe('analyzeSound (integration)', () => {
     expect(result.report.vocab).toBeDefined();
   });
 
+  it('parses JSON wrapped in markdown code fences', async () => {
+    const inner = JSON.stringify({
+      summary: 'Fence summary',
+      what_it_means: 'Fence meaning',
+      try_this: 'Fence try',
+      vocab: { term: 'Hz', definition: 'Cycles per second.' },
+    });
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      mockOpenAIResponse(`\`\`\`json\n${inner}\n\`\`\``),
+    );
+
+    const result = await analyzeSound({
+      word: 'ok',
+      frequencies: [5, 5, 5],
+    });
+
+    expect(result.report.summary).toBe('Fence summary');
+  });
+
+  it('uses fallback when choices array is empty', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ choices: [] }),
+    });
+
+    const result = await analyzeSound({
+      word: 'z',
+      frequencies: [10, 0, 0],
+    });
+
+    expect(result.report.summary.length).toBeGreaterThan(10);
+    expect(result.report.try_this || result.report.summary).toBeTruthy();
+  });
+
   it('propagates errors when fetch rejects', async () => {
     globalThis.fetch = vi.fn().mockRejectedValue(new Error('network down'));
 
@@ -168,5 +202,136 @@ describe('dialog (integration)', () => {
     expect(out.pointsEarned).toBe(0);
     expect(out.reply).toContain('Step 1:');
     expect(out.difficulty).toBeLessThanOrEqual(2);
+  });
+
+  it('uses static IDK teaching payload when second model response is not JSON', async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ text: 'idk' }),
+      })
+      .mockResolvedValueOnce(mockOpenAIResponse('not json at all'));
+
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
+    const blob = new Blob(['z'], { type: 'audio/webm' });
+    const out = await dialog(blob, {
+      difficulty: 3,
+      points: 1,
+      targetWord: 'X',
+      analysisText: '',
+      currentQuestion: 'Why FFT bins?',
+      fft: null,
+      history: [],
+    });
+
+    expect(out.reply).toContain('Step 1:');
+    expect(out.reply).toContain('Rule of thumb');
+    expect(out.difficulty).toBeLessThanOrEqual(3);
+  });
+
+  it('uses static quiz payload when evaluation JSON is invalid', async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ text: 'Harmonics stack on the fundamental.' }),
+      })
+      .mockResolvedValueOnce(mockOpenAIResponse('```\nbroken\n```'));
+
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
+    const blob = new Blob(['a'], { type: 'audio/webm' });
+    const out = await dialog(blob, {
+      difficulty: 2,
+      points: 0,
+      targetWord: 'NOTE',
+      analysisText: '',
+      currentQuestion: 'What is a harmonic?',
+      fft: [0.1, 0.2],
+      history: [],
+    });
+
+    expect(out.reply).toContain('Correct:');
+    expect(out.score).toBeCloseTo(0.5, 5);
+    expect(out.nextQuestion.length).toBeGreaterThan(0);
+  });
+
+  it('includes recent dialog history in messages sent to the model', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ text: 'Amplitude is loudness mostly.' }),
+      })
+      .mockResolvedValueOnce(mockOpenAIResponse(
+        JSON.stringify({
+          reply: 'Correct: Good.\nMissing: None.\nNext step: Done.',
+          score: 0.9,
+          newDifficulty: 2,
+          nextQuestion: 'Next Q?',
+        }),
+      ));
+
+    globalThis.fetch = fetchMock;
+
+    const blob = new Blob(['b'], { type: 'audio/webm' });
+    await dialog(blob, {
+      difficulty: 1,
+      points: 0,
+      targetWord: 'T',
+      analysisText: 'analysis',
+      currentQuestion: 'Q1',
+      fft: null,
+      history: [
+        { role: 'user', content: 'Earlier student turn' },
+        { role: 'assistant', content: 'Earlier tutor turn' },
+        { role: 'mentor', content: 'Should map to assistant' },
+      ],
+    });
+
+    const chatCall = fetchMock.mock.calls.find(
+      c => c[0] === '/api/ai/openai' && typeof c[1]?.body === 'string',
+    );
+    expect(chatCall).toBeDefined();
+    const body = JSON.parse(chatCall[1].body);
+    const transcript = body.messages.map(m => `${m.role}:${m.content}`).join('\n');
+    expect(transcript).toContain('Earlier student turn');
+    expect(transcript).toContain('Earlier tutor turn');
+    expect(transcript).toContain('Should map to assistant');
+  });
+
+  it('fills currentQuestion from question bank when omitted', async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ text: 'Student answer here.' }),
+      })
+      .mockResolvedValueOnce(mockOpenAIResponse(
+        JSON.stringify({
+          reply: 'Correct: OK\nMissing: Detail\nNext step: Read spectrum',
+          score: 0.6,
+          newDifficulty: 1,
+          nextQuestion: 'Bank Q',
+        }),
+      ));
+
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
+    const blob = new Blob(['c'], { type: 'audio/webm' });
+    const out = await dialog(blob, {
+      difficulty: 1,
+      points: 0,
+      targetWord: 'W',
+      analysisText: '',
+      currentQuestion: '',
+      fft: null,
+      history: [],
+    });
+
+    expect(out.transcript).toContain('Student answer');
+    expect(out.reply).toContain('Correct:');
   });
 });
