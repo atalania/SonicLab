@@ -131,13 +131,20 @@ export function detectPitchAutocorrelation(buffer, sampleRate) {
   rms = Math.sqrt(rms / SIZE);
   if (rms < 0.01) return { pitchHz: 0, clarity: 0 };
 
-  const minLag = Math.floor(sampleRate / 1000);
+  // Search a vocal-relevant range (~60–500 Hz) instead of the previous
+  // 60–1000 Hz upper bound, which combined with the unnormalized correlation
+  // below produced spurious 600–900 Hz "falsetto" estimates for normal voice.
+  const minLag = Math.floor(sampleRate / 500);
   const maxLag = Math.floor(sampleRate / 60);
-  let bestLag = -1, bestCorr = -1;
+  let bestLag = -1, bestCorr = -Infinity;
 
+  // Normalize each lag's correlation by the number of overlapping samples;
+  // without this the raw sum is biased toward smaller lags (higher pitches).
   for (let lag = minLag; lag <= Math.min(maxLag, SIZE - 1); lag++) {
+    const overlap = SIZE - lag;
     let corr = 0;
-    for (let i = 0; i < SIZE - lag; i++) corr += buffer[i] * buffer[i + lag];
+    for (let i = 0; i < overlap; i++) corr += buffer[i] * buffer[i + lag];
+    corr /= overlap;
     if (corr > bestCorr) { bestCorr = corr; bestLag = lag; }
   }
 
@@ -145,7 +152,9 @@ export function detectPitchAutocorrelation(buffer, sampleRate) {
 
   let zeroLag = 0;
   for (let i = 0; i < SIZE; i++) zeroLag += buffer[i] * buffer[i];
-  const clarity = zeroLag > 0 ? bestCorr / zeroLag : 0;
+  // zeroLag is summed over SIZE samples; bestCorr is averaged over (SIZE-lag).
+  // Normalize zeroLag the same way so clarity stays in [0, 1].
+  const clarity = zeroLag > 0 ? bestCorr / (zeroLag / SIZE) : 0;
 
   // Parabolic interpolation for sub-bin accuracy
   if (bestLag > 0 && bestLag < SIZE - 1) {

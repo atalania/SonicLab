@@ -2,7 +2,7 @@ import { state } from './state.js';
 import { el, liveCtx, mysteryCtx, fitCanvas } from './dom.js';
 import { showStatus, updateProgress, updateStats } from './ui.js';
 import { initAudio, updateFreqAxisLabels } from './audio.js';
-import { captureWord, savePendingCapture, closeLabelModal } from './capture.js';
+import { captureWord, savePendingCapture, closeLabelModal, markDatasetCompleteFired } from './capture.js';
 import { addToGallery, closeAnalysisModal } from './gallery.js';
 import { startRound, redrawMystery } from './challenge.js';
 import { unlockAudioForiOS, startRecording, stopRecordingAndSend } from './dialog.js';
@@ -24,8 +24,9 @@ function switchToChallenge() {
   requestAnimationFrame(() => requestAnimationFrame(() => {
     fitCanvas(el.mysteryCanvas, mysteryCtx);
     fitCanvas(el.liveCanvas, liveCtx);
+    // Reset per-session round counter, but keep cumulative score from prior
+    // sessions/rounds so that hydrated localStorage values are not clobbered.
     state.totalRounds = 0;
-    state.score = 0;
     startRound();
   }));
 }
@@ -73,7 +74,7 @@ el.autoBtn.addEventListener('click', () => {
 
   Object.assign(state.autoCapture, {
     inSpeech: false, speechFrames: 0, silenceFrames: 0,
-    peak: 0, baseline: 0, cooldownUntil: 0
+    peak: 0, baseline: null, cooldownUntil: 0
   });
 });
 
@@ -162,6 +163,10 @@ el.resetLabBtn.addEventListener('click', () => {
     state.difficulty = data.difficulty;
     state.points = data.points;
     state.dialogHistory = data.dialogHistory;
+
+    // Suppress level_complete portal event for hydrated datasets — the level
+    // was already completed in a prior session.
+    if (state.library.length >= 4) markDatasetCompleteFired();
 
     updateProgress();
     updateStats();

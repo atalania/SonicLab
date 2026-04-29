@@ -118,12 +118,27 @@ describe('analyzeSound (integration)', () => {
     expect(result.report.try_this || result.report.summary).toBeTruthy();
   });
 
-  it('propagates errors when fetch rejects', async () => {
+  it('falls back to deterministic offline report when fetch rejects', async () => {
     globalThis.fetch = vi.fn().mockRejectedValue(new Error('network down'));
 
-    await expect(
-      analyzeSound({ word: 'a', frequencies: [1, 2, 3] }),
-    ).rejects.toThrow('network down');
+    const result = await analyzeSound({ word: 'a', frequencies: [1, 2, 3] });
+
+    expect(result.report).toBeDefined();
+    expect(result.analysis).toMatch(/spectrum|energy|pitch/i);
+    expect(result.report.vocab).toBeDefined();
+  });
+
+  it('falls back to deterministic offline report when proxy returns non-2xx', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 502,
+      json: async () => ({ error: 'bad gateway' }),
+    });
+
+    const result = await analyzeSound({ word: 'a', frequencies: [1, 2, 3] });
+
+    expect(result.report).toBeDefined();
+    expect(result.analysis.length).toBeGreaterThan(0);
   });
 });
 
@@ -220,7 +235,7 @@ describe('dialog (integration)', () => {
     expect(out.difficulty).toBeLessThanOrEqual(2);
   });
 
-  it('uses static IDK teaching payload when second model response is not JSON', async () => {
+  it('uses local IDK teaching payload when second model response is not JSON', async () => {
     globalThis.fetch = vi
       .fn()
       .mockResolvedValueOnce({
@@ -242,12 +257,11 @@ describe('dialog (integration)', () => {
       history: [],
     });
 
-    expect(out.reply).toContain('Step 1:');
-    expect(out.reply).toContain('Rule of thumb');
+    expect(out.reply).toMatch(/That's okay|Pitch|formants|spectrogram/i);
     expect(out.difficulty).toBeLessThanOrEqual(3);
   });
 
-  it('uses static quiz payload when evaluation JSON is invalid', async () => {
+  it('uses local heuristic grader when evaluation JSON is invalid', async () => {
     globalThis.fetch = vi
       .fn()
       .mockResolvedValueOnce({
@@ -269,8 +283,13 @@ describe('dialog (integration)', () => {
       history: [],
     });
 
-    expect(out.reply).toContain('Correct:');
-    expect(out.score).toBeCloseTo(0.5, 5);
+    // Local grader now produces a real, transcript-aware score (length +
+    // topical-keyword hits) instead of the previous static 0.5 placeholder.
+    // The transcript hits "harmonic" / "harmonics" / "fundamental", so the
+    // score should land above the baseline.
+    expect(out.reply).toMatch(/harmonic|fundamental|Question was|fallback|Simplified/i);
+    expect(out.score).toBeGreaterThan(0.4);
+    expect(out.score).toBeLessThanOrEqual(1);
     expect(out.nextQuestion.length).toBeGreaterThan(0);
   });
 
@@ -316,6 +335,78 @@ describe('dialog (integration)', () => {
     expect(transcript).toContain('Earlier student turn');
     expect(transcript).toContain('Earlier tutor turn');
     expect(transcript).toContain('Should map to assistant');
+  });
+
+  it('skips Whisper proxy when context.transcript is supplied', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(mockOpenAIResponse(
+      JSON.stringify({
+        reply: 'Correct: ok\nMissing: -\nNext step: -',
+        score: 0.7,
+        newDifficulty: 2,
+        nextQuestion: 'Next?',
+      }),
+    ));
+    globalThis.fetch = fetchMock;
+
+    const out = await dialog(null, {
+      difficulty: 1,
+      points: 0,
+      targetWord: 'X',
+      analysisText: '',
+      currentQuestion: 'Q?',
+      fft: null,
+      history: [],
+      transcript: 'The fundamental frequency drives harmonics.',
+    });
+
+    expect(out.transcript).toBe('The fundamental frequency drives harmonics.');
+    // Only the chat completion call should have run; no Whisper request.
+    const calls = fetchMock.mock.calls.map(c => c[0]);
+    expect(calls).toContain('/api/ai/openai');
+    expect(calls).not.toContain('/api/ai/openai/whisper');
+  });
+
+  it('uses local grader when /api/ai/openai is unreachable (offline mode)', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('connect ECONNREFUSED'));
+
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
+    const out = await dialog(null, {
+      difficulty: 2,
+      points: 5,
+      targetWord: 'TEST',
+      analysisText: '',
+      currentQuestion: 'Why do vowels have formants?',
+      fft: null,
+      history: [],
+      transcript: 'Vowels have formants because of resonance in the vocal tract.',
+    });
+
+    expect(out.reply).toMatch(/fallback|Simplified|tutor API|energy|spectrum/i);
+    expect(out.score).toBeGreaterThan(0);
+    expect(out.totalPoints).toBeGreaterThanOrEqual(5);
+    expect(out.nextQuestion).toBeTruthy();
+  });
+
+  it('uses local IDK payload when offline + transcript is "I don\'t know"', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('offline'));
+
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
+    const out = await dialog(null, {
+      difficulty: 3,
+      points: 0,
+      targetWord: 'X',
+      analysisText: '',
+      currentQuestion: 'Q?',
+      fft: null,
+      history: [],
+      transcript: "I don't know",
+    });
+
+    expect(out.reply).toMatch(/That's okay|Pitch|formants/i);
+    expect(out.pointsEarned).toBe(0);
+    expect(out.difficulty).toBeLessThanOrEqual(3);
   });
 
   it('fills currentQuestion from question bank when omitted', async () => {

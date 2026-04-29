@@ -7,6 +7,10 @@ export function showStatus(msg, type = 'info') {
   else el.wordHint.classList.remove('loading');
 }
 
+// Tracks the previous library count so the "Dataset complete!" banner only
+// fires on the <4 → ≥4 transition, not on every later delete/re-add cycle.
+let lastProgressCount = 0;
+
 export function updateProgress() {
   const count = state.library.length;
   el.count.textContent = count;
@@ -14,10 +18,11 @@ export function updateProgress() {
   el.progressBar.style.width = (count / 4 * 100) + '%';
   el.goToChallengeBtn.disabled = count < 4;
 
-  if (count >= 4) {
+  if (count >= 4 && lastProgressCount < 4) {
     el.goToChallengeBtn.style.boxShadow = '0 0 20px rgba(200,80,255,.5)';
     showStatus('✓ Dataset complete! Ready for Challenge Mode.', 'success');
   }
+  lastProgressCount = count;
 }
 
 export function updateStats() {

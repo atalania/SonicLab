@@ -42,7 +42,10 @@ export async function loadFromLocalStorage() {
     if (!saved) return null;
     const data = JSON.parse(saved);
 
-    if (data.version !== STORAGE_VER && data.version !== 1) {
+    // Only accept the current schema. v1 records used different field names
+    // (e.g. label vs. word) and didn't always carry magnitudes/features, which
+    // led to undefined card titles and broken analysis modals after migration.
+    if (data.version !== STORAGE_VER) {
       localStorage.removeItem(STORAGE_KEY);
       return null;
     }

@@ -36,6 +36,7 @@ The current codebase is **v3.0** (modular vanilla JS): richer **live acoustic re
 
 ### Portal / embed (optional)
 - When running **inside an iframe**, sends `postMessage` payloads (`type: 'ASSISTANT_GAME_EVENT'`) for **level start/complete**, **captures**, **correct/incorrect** challenge answers, **hints**, and **idle nudge** (2-minute idle timer)
+- `postMessage` target origin is locked to `VITE_PORTAL_ORIGIN` when set; otherwise it falls back to the iframe referrer origin (or same-origin as a final fallback)
 - Standalone dev: events are logged to the console only
 
 ---
@@ -120,6 +121,7 @@ Response: JSON with a `text` field (transcript).
 
 - **API keys** belong only on the **server** that implements `/api/ai/*`, never in this static frontend.
 - Rate limits, CORS, and upload size limits are **the host’s responsibility** (this app sends short JSON and small audio clips; very short recordings under ~800 bytes are rejected client-side to avoid empty transcripts).
+- Set `VITE_PORTAL_ORIGIN` in your environment when embedding this app so analytics `postMessage` events are sent only to your expected portal origin.
 
 ---
 

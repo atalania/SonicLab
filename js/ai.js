@@ -83,12 +83,46 @@ function stripCodeFences(s) {
   return s.trim();
 }
 
+function buildApiUrl(path) {
+  const clean = String(path || '').replace(/^\/+/, '');
+  const base = (import.meta?.env?.BASE_URL || '/').replace(/\/+$/, '');
+  if (!clean) return `${base || '/'}/`;
+  if (!base || base === '/') return `/${clean}`;
+  return `${base}/${clean}`;
+}
+
+function getApiCandidates(path) {
+  const clean = String(path || '').replace(/^\/+/, '');
+  const primary = `/${clean}`;
+  const secondary = buildApiUrl(clean);
+  return primary === secondary ? [primary] : [primary, secondary];
+}
+
 function safeParseJson(s) {
   try {
     return [true, JSON.parse(stripCodeFences(s))];
   } catch {
     return [false, {}];
   }
+}
+
+/** Pull quiz JSON even if the model wrapped it in prose or used a single ```json fence. */
+function parseQuizPayload(raw) {
+  const text = stripCodeFences(raw || '').trim();
+  if (!text) return null;
+  try {
+    const o = JSON.parse(text);
+    if (o && typeof o.reply === 'string') return o;
+  } catch { /* try brace extraction */ }
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start >= 0 && end > start) {
+    try {
+      const o = JSON.parse(text.slice(start, end + 1));
+      if (o && typeof o.reply === 'string') return o;
+    } catch { /* ignore */ }
+  }
+  return null;
 }
 
 function isIdk(text) {
@@ -201,19 +235,38 @@ export function getNextQuestion(difficulty) {
 
 // ── AI Call ──
 
-async function callAI(messages, { maxTokens = 320, temperature = 0.2 } = {}) {
-  const res = await fetch('/api/ai/openai', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: AI_MODEL,
-      messages,
-      max_tokens: maxTokens,
-      temperature,
-    }),
-  });
-  const data = await res.json();
-  return (data.choices?.[0]?.message?.content || '').trim();
+async function callAI(messages, { maxTokens = 320, temperature = 0.2, requireJson = false } = {}) {
+  const body = {
+    model: AI_MODEL,
+    messages,
+    max_tokens: maxTokens,
+    temperature,
+  };
+  if (requireJson) body.response_format = { type: 'json_object' };
+
+  let lastError = null;
+  for (const url of getApiCandidates('api/ai/openai')) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return (data.choices?.[0]?.message?.content || '').trim();
+    }
+
+    let detail = '';
+    try {
+      const text = await res.text();
+      detail = text ? `: ${String(text).slice(0, 180)}` : '';
+    } catch {
+      detail = '';
+    }
+    lastError = new Error(`AI proxy returned ${res.status}${detail}`);
+    if (res.status !== 404) break;
+  }
+  throw lastError || new Error('AI proxy failed');
 }
 
 // ── Analyze Sound ──
@@ -223,8 +276,11 @@ export async function analyzeSound(payload) {
   let freqValues = payload.frequencies || [];
   freqValues = freqValues.slice(0, 80).map(x => clampInt(x, 0, 255, 0));
 
-  const sampleRate = clampFloat(payload.sampleRate, 8000, 96000, 44100);
-  const fftSize = clampInt(payload.fftSize, 256, 8192, 1024);
+  // Defaults match the runtime config (FFT_SIZE=2048, sampleRate≈48 kHz on
+  // most browsers) so that dominant_hz / hzPerBin reported to the model agree
+  // with what the lab actually captured if a payload field is missing.
+  const sampleRate = clampFloat(payload.sampleRate, 8000, 96000, 48000);
+  const fftSize = clampInt(payload.fftSize, 256, 8192, 2048);
   const estimatedPitchHz = clampFloat(payload.estimatedPitchHz, 0, 5000, 0);
   const pitchClarity = clampFloat(payload.pitchClarity, 0, 1, 0);
 
@@ -275,46 +331,128 @@ Rules:
 - Keep the language concise and accurate.
 - No praise, no filler, no greetings.`;
 
-  try {
-    const raw = await callAI(
-      [{ role: 'system', content: ANALYZE_SYSTEM_PROMPT }, { role: 'user', content: prompt }],
-      { maxTokens: 320, temperature: 0.2 }
-    );
+  function buildOfflineReport() {
+    const pitchText = (metrics.estimated_pitch_hz > 0 && metrics.pitch_clarity >= 0.35)
+      ? `The pitch estimate is about ${metrics.estimated_pitch_hz} Hz with moderate confidence.`
+      : 'The pitch estimate is uncertain from this snapshot.';
 
-    const [ok, report] = safeParseJson(raw);
-
-    let finalReport;
-    if (ok) {
-      finalReport = report;
-    } else {
-      // Fallback
-      const pitchText = (metrics.estimated_pitch_hz > 0 && metrics.pitch_clarity >= 0.35)
-        ? `The pitch estimate is about ${metrics.estimated_pitch_hz} Hz with moderate confidence.`
-        : 'The pitch estimate is uncertain from this snapshot.';
-
-      finalReport = {
-        summary: `The measured spectrum shows much of its energy in the ${metrics.dominant_region} with a strongest FFT peak near ${metrics.dominant_hz} Hz. ${pitchText}`,
-        what_it_means: `The energy split is low=${metrics.energy_distribution.low}%, mid=${metrics.energy_distribution.mid}%, high=${metrics.energy_distribution.high}%. This suggests the sound is ${metrics.peakiness > 2.0 ? 'more tonal' : 'more noise-like'}, and the pitch estimate should be interpreted separately from where FFT energy is concentrated.`,
-        try_this: 'Try saying the same vowel at a clearly higher and then lower pitch, and compare both the pitch estimate and the spectrum shape.',
-        vocab: { term: 'fundamental frequency', definition: 'The fundamental frequency is the main repeating frequency of a voiced sound and is closely related to perceived pitch.' },
-      };
-    }
-
-    const analysisText = [
-      finalReport.summary || '',
-      finalReport.what_it_means || '',
-      `Try this: ${finalReport.try_this || ''}`,
-      `Vocab — ${finalReport.vocab?.term || ''}: ${finalReport.vocab?.definition || ''}`,
-    ].join('\n').trim();
-
-    return { metrics, report: finalReport, analysis: analysisText };
-  } catch (err) {
-    console.error('analyzeSound error:', err);
-    throw err;
+    return {
+      summary: `The measured spectrum shows much of its energy in the ${metrics.dominant_region} with a strongest FFT peak near ${metrics.dominant_hz} Hz. ${pitchText}`,
+      what_it_means: `The energy split is low=${metrics.energy_distribution.low}%, mid=${metrics.energy_distribution.mid}%, high=${metrics.energy_distribution.high}%. This suggests the sound is ${metrics.peakiness > 2.0 ? 'more tonal' : 'more noise-like'}, and the pitch estimate should be interpreted separately from where FFT energy is concentrated.`,
+      try_this: 'Try saying the same vowel at a clearly higher and then lower pitch, and compare both the pitch estimate and the spectrum shape.',
+      vocab: { term: 'fundamental frequency', definition: 'The fundamental frequency is the main repeating frequency of a voiced sound and is closely related to perceived pitch.' },
+    };
   }
+
+  let raw = '';
+  try {
+    raw = await callAI(
+      [{ role: 'system', content: ANALYZE_SYSTEM_PROMPT }, { role: 'user', content: prompt }],
+      { maxTokens: 320, temperature: 0.2, requireJson: true }
+    );
+  } catch (err) {
+    // Network outage / proxy 5xx / non-JSON body. Don't propagate: the README
+    // promises a local educational fallback, and capture.js can only show that
+    // fallback if analyzeSound returns it instead of throwing.
+    console.warn('analyzeSound: AI proxy unreachable, using offline report:', err);
+    raw = '';
+  }
+
+  const [ok, report] = safeParseJson(raw);
+  const finalReport = ok ? report : buildOfflineReport();
+
+  const analysisText = [
+    finalReport.summary || '',
+    finalReport.what_it_means || '',
+    `Try this: ${finalReport.try_this || ''}`,
+    `Vocab — ${finalReport.vocab?.term || ''}: ${finalReport.vocab?.definition || ''}`,
+  ].join('\n').trim();
+
+  return { metrics, report: finalReport, analysis: analysisText };
 }
 
 // ── Dialog (quiz flow) ──
+
+// Heuristic local grader used when /api/ai/openai is unreachable or returns
+// non-JSON. Plain text only (the UI does not render Markdown).
+function localQuizGrade(transcript, difficulty, currentQuestion) {
+  const t = (transcript || '').toLowerCase();
+  const words = t.split(/\s+/).filter(Boolean);
+  const wordCount = words.length;
+
+  let score = 0.35;
+  if (wordCount >= 5) score += 0.1;
+  if (wordCount >= 12) score += 0.1;
+  if (wordCount >= 24) score += 0.05;
+
+  const TOPICAL = [
+    'frequency', 'pitch', 'amplitude', 'spectrum', 'spectral', 'centroid',
+    'harmonic', 'harmonics', 'fundamental', 'formant', 'formants', 'resonance',
+    'flatness', 'rolloff', 'bandwidth', 'energy', 'tonal', 'noise', 'noisy',
+    'vowel', 'consonant', 'voiced', 'unvoiced', 'fft', 'hertz', 'hz',
+    'low', 'mid', 'high', 'band', 'wave', 'waveform', 'octave',
+  ];
+  const hits = TOPICAL.filter(k => t.includes(k));
+  score += Math.min(0.3, hits.length * 0.07);
+  score = Math.max(0, Math.min(1, score));
+
+  const newDifficulty = score >= 0.75 ? Math.min(5, difficulty + 1)
+                       : score <= 0.35 ? Math.max(1, difficulty - 1)
+                       : difficulty;
+
+  const qShort = currentQuestion.length > 160 ? `${currentQuestion.slice(0, 157)}...` : currentQuestion;
+  const ql = (currentQuestion || '').toLowerCase();
+
+  let coaching = '';
+  if (/louder|loudness|volume|amplitude|same word louder/i.test(ql)) {
+    coaching = 'Good instinct to compare the same word at different loudness levels. Usually the first change is that the whole pattern gets brighter, while the overall band shape stays fairly similar.';
+  } else if (/pitch|higher|lower|fundamental|harmonic/i.test(ql)) {
+    coaching = 'Nice direction to think in terms of harmonics. When pitch shifts, harmonic peaks tend to move together while keeping roughly the same spacing pattern.';
+  } else if (/noise|tonal|flat|flatness|grainy|whisper/i.test(ql)) {
+    coaching = 'A helpful clue: noisy sounds spread energy across many bins, while vowel-like sounds usually form stronger, more focused bands.';
+  } else if (/fft|bin|resolution|discrete/i.test(ql)) {
+    coaching = 'Think of the FFT as a set of frequency buckets. Each moment is summarized into bins, so you see a sampled snapshot of the spectrum.';
+  } else {
+    coaching = 'A solid way to answer this is to point to where the energy clusters and explain whether that pattern looks more vowel-like or noise-like.';
+  }
+
+  const nudge = wordCount < 6
+    ? 'Try giving one concrete visual detail you would look for on the spectrogram.'
+    : 'For your next step, name one specific feature you would track on the frequency axis or in band brightness.';
+
+  const reply = [
+    coaching,
+    '',
+    `Question: "${qShort}"`,
+    '',
+    nudge,
+  ].join('\n');
+
+  return {
+    reply: reply.trim(),
+    score,
+    newDifficulty,
+    nextQuestion: getNextQuestion(newDifficulty),
+  };
+}
+
+function localIdkPayload(difficulty) {
+  const nd = Math.max(1, difficulty - 1);
+  return {
+    reply: [
+      "That's okay — let's break it down.",
+      '',
+      'Pitch is roughly how fast your vocal folds vibrate (frequency). Loudness is mostly energy or amplitude — turning the volume up does not automatically push pitch higher.',
+      '',
+      'On the spectrogram, voiced vowels often show brighter horizontal bands (formants). Consonants can look more scattered or noisy.',
+      '',
+      'Quick check: if you whisper the same vowel, does pitch usually jump a lot, or stay in a similar range?',
+    ].join('\n'),
+    score: 0.1,
+    newDifficulty: nd,
+    nextQuestion: getNextQuestion(nd),
+  };
+}
 
 export async function dialog(audioBlob, context) {
   const difficulty = clampInt(context.difficulty, 1, 5, 1);
@@ -329,20 +467,35 @@ export async function dialog(audioBlob, context) {
   const fftPreview = Array.isArray(fft) ? fft.slice(0, 40) : null;
   const history = Array.isArray(context.history) ? context.history : [];
 
-  // Step 1: Transcribe audio via Whisper proxy
-  const form = new FormData();
-  form.append('file', audioBlob, 'audio.webm');
-  form.append('model', 'whisper-1');
+  // Step 1: Transcribe.
+  // Callers may supply `context.transcript` (e.g. from the browser's Web
+  // Speech API) so we can run the quiz with no backend at all. Only fall
+  // back to the Whisper proxy when no client-side transcript is provided.
+  let transcript = (context.transcript || '').trim();
+  if (!transcript) {
+    if (!audioBlob) throw new Error('No audio and no pre-supplied transcript');
+    const form = new FormData();
+    form.append('file', audioBlob, 'audio.webm');
+    form.append('model', 'whisper-1');
 
-  let transcript;
-  try {
-    const whisperRes = await fetch('/api/ai/openai/whisper', { method: 'POST', body: form });
-    if (!whisperRes.ok) throw new Error('Whisper request failed');
-    const whisperData = await whisperRes.json();
-    transcript = (whisperData.text || '').trim();
-  } catch (err) {
-    console.error('Transcription error:', err);
-    throw new Error('Transcription failed');
+    try {
+      let whisperData = null;
+      let whisperOk = false;
+      for (const url of getApiCandidates('api/ai/openai/whisper')) {
+        const whisperRes = await fetch(url, { method: 'POST', body: form });
+        if (whisperRes.ok) {
+          whisperData = await whisperRes.json();
+          whisperOk = true;
+          break;
+        }
+        if (whisperRes.status !== 404) throw new Error('Whisper request failed');
+      }
+      if (!whisperOk) throw new Error('Whisper request failed');
+      transcript = (whisperData?.text || '').trim();
+    } catch (err) {
+      console.error('Transcription error:', err);
+      throw new Error('Transcription failed');
+    }
   }
 
   // Step 2: Handle "I don't know" responses
@@ -384,19 +537,20 @@ Set:
 - score between 0.0 and 0.2
 - newDifficulty to max(1, ${difficulty} - 1)`;
 
-    const raw = await callAI(
-      [{ role: 'system', content: 'You output STRICT JSON only. No markdown.' }, { role: 'user', content: teachPrompt }],
-      { maxTokens: 420, temperature: 0.25 }
-    );
+    let raw = '';
+    try {
+      raw = await callAI(
+        [{ role: 'system', content: 'You output STRICT JSON only. No markdown.' }, { role: 'user', content: teachPrompt }],
+        { maxTokens: 420, temperature: 0.25, requireJson: true }
+      );
+    } catch (err) {
+      console.warn('dialog (IDK): AI proxy unreachable, using local teaching payload:', err);
+      raw = '';
+    }
 
-    let [ok, payload] = safeParseJson(raw);
-    if (!ok) {
-      payload = {
-        reply: "Step 1: The question is asking about a sound feature in simple terms.\nStep 2: The key idea is that pitch, loudness, and spectrum are related but not identical.\nStep 3: For example, speaking louder usually raises amplitude, but not necessarily pitch.\nStep 4: Rule of thumb: pitch relates to frequency, loudness relates to amplitude.\nStep 5: What usually changes first when you speak louder: amplitude or pitch?",
-        score: 0.1,
-        newDifficulty: Math.max(1, difficulty - 1),
-        nextQuestion: getNextQuestion(Math.max(1, difficulty - 1)),
-      };
+    let payload = parseQuizPayload(raw);
+    if (!payload) {
+      payload = localIdkPayload(difficulty);
     }
 
     const score = clampFloat(payload.score, 0.0, 1.0, 0.1);
@@ -446,21 +600,25 @@ Student's spoken answer: "${transcript}"
 Evaluate the answer and respond with STRICT JSON.`,
   });
 
-  const raw = await callAI(messages, { maxTokens: 380, temperature: 0.3 });
-  let [ok, payload] = safeParseJson(raw);
+  let raw = '';
+  try {
+    raw = await callAI(messages, { maxTokens: 380, temperature: 0.3, requireJson: true });
+  } catch (err) {
+    console.warn('dialog: AI proxy unreachable, using local quiz grader:', err);
+    raw = '';
+  }
 
-  if (!ok) {
-    payload = {
-      reply: "Correct: You attempted an answer related to the question.\nMissing: Add one more precise physics or signal-processing detail.\nNext step: Use one specific term such as amplitude, resonance, or harmonics.",
-      score: 0.5,
-      newDifficulty: difficulty,
-      nextQuestion: getNextQuestion(difficulty),
-    };
+  let payload = parseQuizPayload(raw);
+  if (!payload) {
+    if (raw && String(raw).trim().length > 0) {
+      console.warn('dialog: quiz response was not valid JSON; first 280 chars:', String(raw).slice(0, 280));
+    }
+    payload = localQuizGrade(transcript, difficulty, currentQuestion);
   }
 
   const score = clampFloat(payload.score, 0.0, 1.0, 0.5);
   const newDifficulty = clampInt(payload.newDifficulty, 1, 5, difficulty);
-  const reply = truncate(payload.reply || 'Correct: —\nMissing: —\nNext step: —', 2000);
+  const reply = truncate(payload.reply || 'Something went wrong parsing the tutor reply — please try again.', 2000);
   const nextQuestion = truncate(payload.nextQuestion || getNextQuestion(newDifficulty), 500);
 
   const pointsEarned = computePoints(score, difficulty);

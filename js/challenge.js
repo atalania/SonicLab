@@ -28,6 +28,14 @@ function getInitialQuestion(difficulty) {
   return list[Math.floor(Math.random() * list.length)];
 }
 
+function shuffleInPlace(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 export function startRound() {
   el.feedback.textContent = '';
   el.feedback.className = 'feedback-box';
@@ -45,12 +53,15 @@ export function startRound() {
     el.aiReply.textContent = 'Hold the talk button and answer the question above!';
   }
 
-  const decoys = state.library
-    .filter(item => item.word !== state.currentTarget.word)
-    .sort(() => .5 - Math.random())
-    .slice(0, Math.min(2, state.library.length - 1));
+  // Fisher–Yates: `.sort(() => .5 - Math.random())` is biased toward the
+  // input order on V8 and similar engines.
+  const decoyPool = state.library.filter(item => item.word !== state.currentTarget.word);
+  shuffleInPlace(decoyPool);
+  const decoys = decoyPool.slice(0, Math.min(2, state.library.length - 1));
 
-  [...[state.currentTarget, ...decoys]].sort(() => .5 - Math.random()).forEach(choice => {
+  const options = [state.currentTarget, ...decoys];
+  shuffleInPlace(options);
+  options.forEach(choice => {
     const btn = document.createElement('button');
     btn.className = 'option-btn';
     btn.textContent = choice.word;

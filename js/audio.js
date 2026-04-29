@@ -18,6 +18,11 @@ export async function initAudio() {
     state.analyser.smoothingTimeConstant = SMOOTHING;
 
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    // Share the analyser's mic stream with the AI quiz recorder so we don't
+    // open two independent getUserMedia graphs with mismatched processing
+    // (one raw, one with AGC/noise suppression). dialog.js will reuse this
+    // instead of calling getUserMedia a second time.
+    state.recordingStream = stream;
     const source = state.audioCtx.createMediaStreamSource(stream);
     source.connect(state.analyser);
 
@@ -136,7 +141,7 @@ function draw() {
   }
 
   // ── Live readout (throttled) ──
-  drawFrameCount++;
+  drawFrameCount = (drawFrameCount + 1) % 1_000_000;
   if (drawFrameCount % 8 === 0) updateLiveReadout();
 
   // ── Auto-capture VAD ──
@@ -172,9 +177,13 @@ function runVAD(energy) {
   const alpha = 0.05;
 
   if (!state.autoCapture.inSpeech) {
-    state.autoCapture.baseline = state.autoCapture.baseline
-      ? (1 - alpha) * state.autoCapture.baseline + alpha * energy
-      : energy;
+    // Use a `null` sentinel for "uninitialized baseline"; the previous truthy
+    // check meant any moment baseline evaluated to 0 (e.g. perfect silence on
+    // a muted line) caused the next non-zero energy frame to be adopted as
+    // the new baseline with no smoothing.
+    state.autoCapture.baseline = state.autoCapture.baseline == null
+      ? energy
+      : (1 - alpha) * state.autoCapture.baseline + alpha * energy;
   }
 
   const threshold  = state.autoCapture.baseline + 12;
@@ -203,6 +212,10 @@ function runVAD(energy) {
         if (strong && long) {
           createPendingCapture();
           state.autoCapture.cooldownUntil = Date.now() + 900;
+        } else {
+          // Short / weak speech bursts also get a (smaller) cooldown so
+          // trailing noise can't immediately re-trigger speech detection.
+          state.autoCapture.cooldownUntil = Date.now() + 300;
         }
         state.autoCapture.inSpeech     = false;
         state.autoCapture.speechFrames = 0;

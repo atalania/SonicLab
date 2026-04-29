@@ -32,7 +32,9 @@ export const state = {
     inSpeech: false,
     speechFrames: 0,
     silenceFrames: 0,
-    baseline: 0,
+    // `null` = uninitialized; first VAD frame seeds it directly. Any other
+    // numeric value (including 0) is a real EWMA baseline and gets smoothed.
+    baseline: null,
     peak: 0,
     cooldownUntil: 0
   }

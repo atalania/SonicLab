@@ -5,6 +5,36 @@ import { frequencyToNoteName, labelFrequency, generateEducationalNote } from './
 import { updateProgress, updateStats } from './ui.js';
 import { saveToLocalStorage } from './storage.js';
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function setAnalysisText(text) {
+  el.analysisAiText.textContent = '';
+  if (!text) return;
+
+  const header = document.createElement('strong');
+  header.textContent = 'AI Analysis';
+  header.style.fontFamily = 'var(--font-mono)';
+  header.style.fontSize = '.62rem';
+  header.style.letterSpacing = '.12em';
+  header.style.display = 'block';
+  header.style.marginBottom = '6px';
+  header.style.color = 'var(--muted)';
+  header.style.textTransform = 'uppercase';
+
+  const body = document.createElement('span');
+  body.textContent = String(text);
+  body.style.whiteSpace = 'pre-line';
+
+  el.analysisAiText.append(header, body);
+}
+
 export function addToGallery(word, snapCanvas, index) {
   if (el.galleryEmpty) el.galleryEmpty.style.display = 'none';
 
@@ -93,17 +123,17 @@ export function showAnalysisModal(index) {
 
     el.analysisFeatures.innerHTML = features.map(ft =>
       `<div class="feature-card">
-        <div class="feature-card__value">${ft.value}</div>
-        <div class="feature-card__label">${ft.label}</div>
-        <div class="feature-card__desc">${ft.desc}</div>
+        <div class="feature-card__value">${escapeHtml(ft.value)}</div>
+        <div class="feature-card__label">${escapeHtml(ft.label)}</div>
+        <div class="feature-card__desc">${escapeHtml(ft.desc)}</div>
       </div>`
     ).join('');
 
     if (f.bandEnergies) {
       el.analysisBands.innerHTML = f.bandEnergies.map(b =>
         `<div class="band-row">
-          <span class="band-label">${b.name}</span>
-          <span class="band-range">${b.range[0]}–${b.range[1]} Hz</span>
+          <span class="band-label">${escapeHtml(b.name)}</span>
+          <span class="band-range">${escapeHtml(b.range[0])}–${escapeHtml(b.range[1])} Hz</span>
           <div class="band-bar-track"><div class="band-bar-fill" style="width:${Math.min(100, b.pct * 2)}%;background:${b.color}"></div></div>
           <span class="band-pct">${b.pct.toFixed(1)}%</span>
         </div>`
@@ -115,18 +145,16 @@ export function showAnalysisModal(index) {
         const hz = Math.round(peak.freq);
         return `<li class="dominant-freq-item">
           <span class="freq-badge">${hz} Hz</span>
-          <span class="freq-note">${frequencyToNoteName(hz)}</span>
-          <span class="freq-role">${labelFrequency(hz, f.pitchHz)}</span>
+          <span class="freq-note">${escapeHtml(frequencyToNoteName(hz))}</span>
+          <span class="freq-role">${escapeHtml(labelFrequency(hz, f.pitchHz))}</span>
         </li>`;
       }).join('');
     }
 
-    el.analysisEducational.innerHTML = `<strong>What This Means</strong>${generateEducationalNote(f)}`;
+    el.analysisEducational.innerHTML = `<strong>What This Means</strong>${escapeHtml(generateEducationalNote(f))}`;
   }
 
-  el.analysisAiText.innerHTML = item.analysis
-    ? `<strong style="font-family:var(--font-mono);font-size:.62rem;letter-spacing:.12em;display:block;margin-bottom:6px;color:var(--muted);text-transform:uppercase;">AI Analysis</strong>${item.analysis}`
-    : '';
+  setAnalysisText(item.analysis);
 
   el.analysisModal.classList.add('visible');
   requestAnimationFrame(() => drawSpectrumChart(el.analysisSpectrum, item));

@@ -64,7 +64,11 @@ export const el = {
   analysisAiText:      $('analysis-ai-text'),
 };
 
-export const liveCtx    = el.liveCanvas.getContext('2d', { willReadFrequently: true });
+// `willReadFrequently: true` forces a CPU-backed canvas which is only useful
+// for getImageData reads. The waterfall renderer only writes to the canvas
+// (the drawImage scroll is GPU-side), so the flag was hurting frame rate on
+// hardware-accelerated browsers without any benefit.
+export const liveCtx    = el.liveCanvas.getContext('2d');
 export const mysteryCtx = el.mysteryCanvas.getContext('2d');
 
 export function fitCanvas(canvas, ctx) {

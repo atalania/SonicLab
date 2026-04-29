@@ -12,9 +12,23 @@ const IDLE_TIMEOUT_MS = 120_000;
 let problemStartTime = Date.now();
 let hintCount = 0;
 let idleTimer = null;
+const PORTAL_ORIGIN = (import.meta.env.VITE_PORTAL_ORIGIN || '').trim();
 
 function elapsed() {
   return Math.round((Date.now() - problemStartTime) / 1000);
+}
+
+function getTargetOrigin() {
+  if (PORTAL_ORIGIN) return PORTAL_ORIGIN;
+  try {
+    if (document.referrer) {
+      const origin = new URL(document.referrer).origin;
+      if (origin && origin !== 'null') return origin;
+    }
+  } catch {
+    // Ignore malformed referrer and use same-origin fallback.
+  }
+  return window.location.origin;
 }
 
 function sendToPortal(payload) {
@@ -22,7 +36,7 @@ function sendToPortal(payload) {
     console.debug('[SonicLab Bridge]', payload.eventType, payload);
     return;
   }
-  window.parent.postMessage({ type: 'ASSISTANT_GAME_EVENT', payload }, '*');
+  window.parent.postMessage({ type: 'ASSISTANT_GAME_EVENT', payload }, getTargetOrigin());
 }
 
 function currentLevel() {
@@ -156,9 +170,14 @@ function resetIdleTimer() {
 // ── Bootstrap ────────────────────────────────────────
 
 export function initPortal() {
-  ['click', 'keydown', 'pointerdown'].forEach(evt => {
-    document.addEventListener(evt, resetIdleTimer, { passive: true });
-  });
+  // Listen on a broader set of events so reading the spectrogram, typing into
+  // the modal, or moving the mouse counts as activity. Without `input` and
+  // `mousemove`, the 2-minute idle timer fired even while the student was
+  // actively interacting with the lab.
+  ['click', 'keydown', 'pointerdown', 'pointermove', 'input', 'wheel', 'touchmove']
+    .forEach(evt => {
+      document.addEventListener(evt, resetIdleTimer, { passive: true });
+    });
   resetIdleTimer();
   fireLabStart();
 }

@@ -1,11 +1,33 @@
 import { analyzeSound } from './ai.js';
 import { state } from './state.js';
-import { el, liveCtx } from './dom.js';
+import { el } from './dom.js';
 import { computeAllFeatures, generateEducationalNote } from './dsp.js';
 import { showStatus, updateProgress, updateStats } from './ui.js';
 import { addToGallery } from './gallery.js';
 import { saveToLocalStorage } from './storage.js';
 import { fireCaptureComplete, fireDatasetComplete } from './portal.js';
+
+// Guards against double-firing when the user mashes Enter / clicks Capture
+// twice while the AI call is in flight (which previously created duplicate
+// library entries).
+let captureInFlight = false;
+// Fire `level_complete` once per session: don't re-emit it on every delete /
+// re-add cycle, and also emit it once for libraries hydrated from storage.
+let datasetCompleteFired = false;
+
+function maybeFireDatasetComplete() {
+  if (datasetCompleteFired) return;
+  if (state.library.length >= 4) {
+    datasetCompleteFired = true;
+    fireDatasetComplete();
+  }
+}
+
+export function markDatasetCompleteFired() {
+  // Allow app.js to suppress the event when hydrating ≥4 captures from
+  // localStorage on page load (the level was completed in a prior session).
+  datasetCompleteFired = true;
+}
 
 export function openLabelModal() {
   el.labelModal.classList.add('visible');
@@ -66,63 +88,69 @@ function buildApiPayload(word, freq, features) {
 async function fetchAnalysis(word, freq, features) {
   try {
     const data = await analyzeSound(buildApiPayload(word, freq, features));
-    showStatus(`✓ Analysis complete for "${word}"`, 'success');
-    setTimeout(() => showStatus(data.analysis, 'analysis'), 500);
+    showStatus(`✓ Analysis complete for "${word}" — open the gallery card for details.`, 'success');
     return data.analysis;
   } catch {
+    // analyzeSound now folds network failures into a deterministic offline
+    // report and never throws on /api/ai/openai outages — but if a future
+    // refactor reintroduces a throw, fall back to the local educational note
+    // so the gallery card still has something useful to show.
     showStatus('⚠ Connection failed — using offline analysis.', 'error');
-    if (features) {
-      setTimeout(() => showStatus(generateEducationalNote(features), 'analysis'), 1000);
-    }
-    return 'Analysis unavailable (Offline Mode)';
+    return features ? generateEducationalNote(features) : 'Analysis unavailable (Offline Mode)';
   }
 }
 
 export async function captureWord() {
+  if (captureInFlight) return;
   const word = el.wordInput.value.toUpperCase().trim();
   if (!word) { alert('Please type the word you are saying!'); return; }
   if (state.library.some(item => item.word === word)) {
     alert('That word is already captured — use a different one.'); return;
   }
 
-  const dpr  = window.devicePixelRatio || 1;
-  const cssW = el.liveCanvas.width / dpr;
-  const cssH = el.liveCanvas.height / dpr;
+  captureInFlight = true;
+  try {
+    const dpr  = window.devicePixelRatio || 1;
+    const cssW = el.liveCanvas.width / dpr;
+    const cssH = el.liveCanvas.height / dpr;
 
-  const snap = document.createElement('canvas');
-  snap.width = cssW; snap.height = cssH;
-  snap.getContext('2d').drawImage(
-    el.liveCanvas, 0, 0, el.liveCanvas.width, el.liveCanvas.height, 0, 0, cssW, cssH
-  );
+    const snap = document.createElement('canvas');
+    snap.width = cssW; snap.height = cssH;
+    snap.getContext('2d').drawImage(
+      el.liveCanvas, 0, 0, el.liveCanvas.width, el.liveCanvas.height, 0, 0, cssW, cssH
+    );
 
-  const sr = state.audioCtx.sampleRate;
-  const fft = state.analyser.fftSize;
-  const avgMags = state.spectrumBuffer.getSpeechAverage(25) || new Float32Array(state.linearMags);
-  const features = computeAllFeatures(avgMags, state.floatTimeData, sr, fft);
-  const freq = new Uint8Array(state.dataArray);
+    const sr = state.audioCtx.sampleRate;
+    const fft = state.analyser.fftSize;
+    const avgMags = state.spectrumBuffer.getSpeechAverage(25) || new Float32Array(state.linearMags);
+    const features = computeAllFeatures(avgMags, state.floatTimeData, sr, fft);
+    const freq = new Uint8Array(state.dataArray);
 
-  showStatus(`Analyzing spectral data for "${word}"…`, 'loading');
-  el.captureBtn.disabled = true;
-  el.recordingIndicator.classList.add('active');
+    showStatus(`Analyzing spectral data for "${word}"…`, 'loading');
+    el.captureBtn.disabled = true;
+    el.recordingIndicator.classList.add('active');
 
-  const aiAnalysis = await fetchAnalysis(word, freq, features);
+    const aiAnalysis = await fetchAnalysis(word, freq, features);
 
-  state.library.push({
-    word, img: snap, freq,
-    magnitudes: new Float32Array(avgMags),
-    features, analysis: aiAnalysis,
-    timestamp: new Date().toLocaleTimeString()
-  });
+    state.library.push({
+      word, img: snap, freq,
+      magnitudes: new Float32Array(avgMags),
+      features, analysis: aiAnalysis,
+      timestamp: new Date().toLocaleTimeString()
+    });
 
-  addToGallery(word, snap, state.library.length - 1);
-  updateProgress();
-  fireCaptureComplete(word, features);
-  if (state.library.length === 4) fireDatasetComplete();
-  el.wordInput.value = '';
-  el.captureBtn.disabled = false;
-  el.recordingIndicator.classList.remove('active');
-  if (state.library.length === 1) el.statsBar.style.display = 'flex';
-  saveToLocalStorage();
+    addToGallery(word, snap, state.library.length - 1);
+    updateProgress();
+    fireCaptureComplete(word, features);
+    maybeFireDatasetComplete();
+    el.wordInput.value = '';
+    el.recordingIndicator.classList.remove('active');
+    if (state.library.length === 1) el.statsBar.style.display = 'flex';
+    saveToLocalStorage();
+  } finally {
+    captureInFlight = false;
+    el.captureBtn.disabled = state.autoCapture.enabled;
+  }
 }
 
 export async function savePendingCapture(word) {
@@ -146,7 +174,7 @@ export async function savePendingCapture(word) {
   updateProgress();
   updateStats();
   fireCaptureComplete(word, pending.features);
-  if (state.library.length === 4) fireDatasetComplete();
+  maybeFireDatasetComplete();
   el.recordingIndicator.classList.remove('active');
   if (state.library.length === 1) el.statsBar.style.display = 'flex';
   saveToLocalStorage();

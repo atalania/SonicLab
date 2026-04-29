@@ -822,6 +822,7 @@ body {
   font-size: .9rem;
   color: var(--white);
   line-height: 1.55;
+  white-space: pre-wrap;
 }
 
 #replayTtsBtn {

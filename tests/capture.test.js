@@ -98,12 +98,15 @@ describe('capture pipeline', () => {
     expect(el.gallery.querySelectorAll('.capture-card').length).toBe(1);
   });
 
-  it('captureWord uses offline copy when analyzeSound fails', async () => {
+  it('captureWord uses offline educational note when analyzeSound rejects', async () => {
     vi.spyOn(ai, 'analyzeSound').mockRejectedValue(new Error('offline'));
     el.wordInput.value = 'beta';
     await captureWord();
     vi.advanceTimersByTime(2000);
-    expect(state.library[0].analysis).toMatch(/Offline|unavailable/i);
+    // The fallback path now stores the locally-generated educational note
+    // (computed from the captured features) instead of a placeholder string,
+    // so the gallery card has something useful to display.
+    expect(state.library[0].analysis).toMatch(/Hz|spectral|fundamental|flatness|centroid/i);
   });
 
   it('createPendingCapture stores snapshot and opens modal', () => {

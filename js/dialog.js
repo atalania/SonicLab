@@ -4,6 +4,23 @@ import { el } from './dom.js';
 import { updateStats } from './ui.js';
 import { saveToLocalStorage } from './storage.js';
 
+// Hold-to-talk race control. Pointer-up can fire while startRecording is still
+// awaiting getUserMedia / Web Speech start; without this, the recorder ran
+// AFTER the user released the button, leaving a recording that nothing would
+// ever stop.
+let startInFlight = false;
+let pendingStop = false;
+
+// Web Speech API session (when available). When set, we use the browser's
+// own recognizer instead of going through the /api/ai/openai/whisper proxy
+// — this lets the quiz work in pure dev / standalone mode with no backend.
+let activeRecognition = null;
+let recognitionResolve = null;
+
+function isSpeechApiAvailable() {
+  return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+}
+
 export async function unlockAudioForiOS() {
   if (state.ttsUnlocked) return;
   try {
@@ -18,16 +35,19 @@ export async function unlockAudioForiOS() {
       src.start(0);
     }
     state.ttsUnlocked = true;
-  } catch {
-    state.ttsUnlocked = true;
+  } catch (err) {
+    // Don't latch ttsUnlocked=true on failure: a later user gesture should be
+    // able to retry. The fallback recording flow still works because Whisper
+    // doesn't depend on the unlock context.
+    console.warn('unlockAudioForiOS: failed (will retry on next gesture):', err);
   }
 }
 
 async function ensureRecordingStream() {
   if (state.recordingStream) return state.recordingStream;
-  state.recordingStream = await navigator.mediaDevices.getUserMedia({
-    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-  });
+  // Use raw audio (no echoCancellation/noiseSuppression/AGC) so the recorded
+  // clip matches the analyser's spectrogram view that the student sees.
+  state.recordingStream = await navigator.mediaDevices.getUserMedia({ audio: true });
   return state.recordingStream;
 }
 
@@ -39,17 +59,112 @@ function pickBestMime() {
   return '';
 }
 
+function resetTalkButton() {
+  el.talkBtn.disabled = false;
+  el.talkBtn.textContent = '🎙️ Hold to Talk';
+  el.talkBtn.classList.remove('recording');
+}
+
+// ── Web Speech API path ─────────────────────────────────────────────────
+//
+// Chrome/Edge/Safari ship `SpeechRecognition` (or `webkitSpeechRecognition`)
+// which transcribes locally + via the browser vendor's service. This means
+// the quiz works without us standing up a Whisper proxy.
+
+function startWebSpeech() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition;
+  try {
+    recognition = new SR();
+  } catch (err) {
+    console.warn('Web Speech API constructor failed:', err);
+    return false;
+  }
+
+  recognition.lang = 'en-US';
+  recognition.continuous = true;
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+
+  let finalTranscript = '';
+  const result = new Promise(resolve => {
+    recognitionResolve = resolve;
+    recognition.onresult = e => {
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) {
+          finalTranscript += e.results[i][0].transcript + ' ';
+        }
+      }
+    };
+    recognition.onerror = e => {
+      // 'no-speech' / 'aborted' / 'audio-capture' are non-fatal; resolve with
+      // whatever we have. Anything else also resolves so the UI never hangs.
+      console.warn('Speech recognition error:', e.error || e);
+      if (recognitionResolve) {
+        const r = recognitionResolve;
+        recognitionResolve = null;
+        r(finalTranscript.trim());
+      }
+    };
+    recognition.onend = () => {
+      if (recognitionResolve) {
+        const r = recognitionResolve;
+        recognitionResolve = null;
+        r(finalTranscript.trim());
+      }
+    };
+  });
+
+  try {
+    recognition.start();
+    activeRecognition = { recognition, result };
+    return true;
+  } catch (err) {
+    console.warn('Web Speech API start() failed:', err);
+    activeRecognition = null;
+    recognitionResolve = null;
+    return false;
+  }
+}
+
+async function stopWebSpeech() {
+  if (!activeRecognition) return '';
+  const { recognition, result } = activeRecognition;
+  activeRecognition = null;
+  try { recognition.stop(); } catch { /* ignore */ }
+  return await result;
+}
+
+// ── Public API ──────────────────────────────────────────────────────────
+
 export async function startRecording() {
   if (!state.currentTarget) {
     el.aiReply.textContent = 'Enter Challenge Mode first to use the AI quiz.';
     return;
   }
   if (state.mediaRecorder?.state === 'recording') return;
+  if (activeRecognition) return;
+  if (startInFlight) return;
 
+  startInFlight = true;
+  pendingStop = false;
   el.talkBtn.disabled = true;
   el.talkBtn.textContent = '🎙️ Recording…';
   el.talkBtn.classList.add('recording');
   state.audioChunks = [];
+
+  // Prefer the in-browser recognizer: it works with no backend running and
+  // avoids uploading audio to a proxy. Fall back to MediaRecorder + Whisper
+  // proxy only when the browser doesn't support Speech Recognition (Firefox).
+  if (isSpeechApiAvailable() && startWebSpeech()) {
+    startInFlight = false;
+    el.talkBtn.disabled = false;
+    if (pendingStop) {
+      pendingStop = false;
+      await stopRecordingAndSend();
+    }
+    return;
+  }
 
   try {
     const stream = await ensureRecordingStream();
@@ -60,24 +175,51 @@ export async function startRecording() {
       if (e.data?.size > 0) state.audioChunks.push(e.data);
     };
     state.mediaRecorder.onerror = () => {
-      el.talkBtn.disabled = false;
-      el.talkBtn.textContent = '🎙️ Hold to Talk';
-      el.talkBtn.classList.remove('recording');
+      resetTalkButton();
     };
     state.mediaRecorder.start(250);
   } catch (err) {
     console.error('startRecording failed:', err);
     el.aiReply.textContent = '❌ Couldn\'t start recording. Check mic permissions.';
-  } finally {
-    setTimeout(() => { el.talkBtn.disabled = false; }, 120);
+    resetTalkButton();
+    startInFlight = false;
+    pendingStop = false;
+    return;
+  }
+
+  startInFlight = false;
+  el.talkBtn.disabled = false;
+  if (pendingStop) {
+    pendingStop = false;
+    await stopRecordingAndSend();
   }
 }
 
 export async function stopRecordingAndSend() {
-  if (!state.mediaRecorder || state.mediaRecorder.state !== 'recording') {
-    el.talkBtn.disabled = false;
-    el.talkBtn.textContent = '🎙️ Hold to Talk';
+  if (startInFlight) {
+    pendingStop = true;
+    return;
+  }
+
+  // ── Web Speech API path ──
+  if (activeRecognition) {
+    el.talkBtn.disabled = true;
+    el.talkBtn.textContent = '⏳ Thinking…';
     el.talkBtn.classList.remove('recording');
+
+    const transcript = await stopWebSpeech();
+    if (!transcript) {
+      resetTalkButton();
+      el.aiReply.textContent = 'I didn\'t catch that — try speaking a bit louder.';
+      return;
+    }
+    await runDialogTurn(null, transcript);
+    return;
+  }
+
+  // ── MediaRecorder + Whisper proxy fallback path ──
+  if (!state.mediaRecorder || state.mediaRecorder.state !== 'recording') {
+    resetTalkButton();
     return;
   }
 
@@ -85,10 +227,15 @@ export async function stopRecordingAndSend() {
   el.talkBtn.textContent = '⏳ Thinking…';
   el.talkBtn.classList.remove('recording');
 
-  const stopped = new Promise(resolve => { state.mediaRecorder.onstop = resolve; });
-  try { state.mediaRecorder.stop(); } catch {
-    el.talkBtn.disabled = false;
-    el.talkBtn.textContent = '🎙️ Hold to Talk';
+  let resolveStopped;
+  const stopped = new Promise(resolve => { resolveStopped = resolve; });
+  state.mediaRecorder.onstop = () => resolveStopped();
+  try {
+    state.mediaRecorder.stop();
+  } catch (err) {
+    console.warn('mediaRecorder.stop() threw:', err);
+    resolveStopped();
+    resetTalkButton();
     return;
   }
   await stopped;
@@ -97,14 +244,17 @@ export async function stopRecordingAndSend() {
   const blob = new Blob(state.audioChunks, { type: mime });
 
   if (blob.size < 800) {
-    el.talkBtn.disabled = false;
-    el.talkBtn.textContent = '🎙️ Hold to Talk';
+    resetTalkButton();
     el.aiReply.textContent = 'I didn\'t catch that — try speaking a bit louder.';
     return;
   }
 
+  await runDialogTurn(blob, '');
+}
+
+function buildDialogContext(extraTranscript) {
   const tf = state.currentTarget?.features;
-  const ctx = {
+  return {
     mode: 'challenge',
     targetWord: state.currentTarget?.word || null,
     fft: state.currentTarget?.freq ? Array.from(state.currentTarget.freq).slice(0, 128) : null,
@@ -117,8 +267,13 @@ export async function stopRecordingAndSend() {
     difficulty: state.difficulty,
     points: state.points,
     history: state.dialogHistory,
-    currentQuestion: el.nextQ.textContent
+    currentQuestion: el.nextQ.textContent,
+    transcript: extraTranscript || '',
   };
+}
+
+async function runDialogTurn(blob, transcriptOverride) {
+  const ctx = buildDialogContext(transcriptOverride);
 
   try {
     const data = await callDialog(blob, ctx);
@@ -139,60 +294,15 @@ export async function stopRecordingAndSend() {
     saveToLocalStorage();
   } catch (err) {
     console.error('Dialog error:', err);
-    el.aiReply.textContent = '⚠ Dialog failed. Check connection and try again.';
+    // Distinguish "couldn't transcribe" from "couldn't grade" so the user
+    // knows whether the issue is the mic / browser support or the proxy.
+    const msg = String(err?.message || err || '');
+    if (/transcription/i.test(msg)) {
+      el.aiReply.textContent = '⚠ Transcription failed. Your browser may not support speech recognition and the Whisper proxy is unreachable. Try Chrome/Edge, or run a backend on port 3000.';
+    } else {
+      el.aiReply.textContent = '⚠ Dialog failed. Check connection and try again.';
+    }
   } finally {
-    el.talkBtn.disabled = false;
-    el.talkBtn.textContent = '🎙️ Hold to Talk';
+    resetTalkButton();
   }
-}
-
-async function playTtsResponse(base64, mime) {
-  const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-  const audioBlob = new Blob([bytes], { type: mime });
-  state.lastTtsData = { blob: audioBlob, mime };
-
-  const replayBtn = document.getElementById('replayTtsBtn');
-  if (replayBtn) {
-    replayBtn.classList.remove('hidden');
-    replayBtn.onclick = () => playStoredTts();
-  }
-
-  const url = URL.createObjectURL(audioBlob);
-  const audio = new Audio(url);
-  audio.playsInline = true;
-  audio.volume = 1.0;
-  audio.load();
-  await new Promise(r => setTimeout(r, 50));
-
-  try {
-    await audio.play();
-  } catch (e) {
-    console.error('TTS autoplay blocked:', e.name);
-    alert('🔊 Audio ready! Tap \'Play Audio\' to hear the response.');
-  }
-  audio.onended = () => URL.revokeObjectURL(url);
-  audio.onerror = () => URL.revokeObjectURL(url);
-}
-
-export async function playStoredTts() {
-  if (!state.lastTtsData) { alert('No audio available to replay'); return; }
-  const url = URL.createObjectURL(state.lastTtsData.blob);
-  const audio = new Audio(url);
-  audio.playsInline = true;
-  audio.volume = 1.0;
-  audio.load();
-  await new Promise(r => setTimeout(r, 100));
-
-  const btn = document.getElementById('replayTtsBtn');
-  if (btn) { btn.textContent = '🔊 Playing…'; btn.disabled = true; }
-
-  try { await audio.play(); }
-  catch { alert('Audio playback blocked.\n\n• Turn off silent mode\n• Increase volume\n• Try Chrome'); }
-
-  const reset = () => {
-    URL.revokeObjectURL(url);
-    if (btn) { btn.textContent = '🔊 Play Audio'; btn.disabled = false; }
-  };
-  audio.onended = reset;
-  audio.onerror = reset;
 }
