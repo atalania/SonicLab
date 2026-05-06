@@ -16,6 +16,7 @@ let pendingStop = false;
 // — this lets the quiz work in pure dev / standalone mode with no backend.
 let activeRecognition = null;
 let recognitionResolve = null;
+let recognitionLastError = '';
 
 function isSpeechApiAvailable() {
   return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
@@ -65,6 +66,19 @@ function resetTalkButton() {
   el.talkBtn.classList.remove('recording');
 }
 
+function explainRecordingFailure(err) {
+  const name = String(err?.name || '').toLowerCase();
+  if (!window.isSecureContext) return '❌ Recording needs HTTPS (secure context).';
+  if (name === 'notallowederror' || name === 'securityerror') {
+    return '❌ Mic blocked by browser settings or iframe permission policy (allow microphone).';
+  }
+  if (name === 'notfounderror') return '❌ No microphone device detected.';
+  if (name === 'notreadableerror' || name === 'aborterror') {
+    return '❌ Microphone unavailable. Close other apps using the mic and retry.';
+  }
+  return '❌ Couldn\'t start recording. Check mic permissions.';
+}
+
 // ── Web Speech API path ─────────────────────────────────────────────────
 //
 // Chrome/Edge/Safari ship `SpeechRecognition` (or `webkitSpeechRecognition`)
@@ -87,6 +101,7 @@ function startWebSpeech() {
   recognition.maxAlternatives = 1;
 
   let finalTranscript = '';
+  recognitionLastError = '';
   const result = new Promise(resolve => {
     recognitionResolve = resolve;
     recognition.onresult = e => {
@@ -100,6 +115,7 @@ function startWebSpeech() {
       // 'no-speech' / 'aborted' / 'audio-capture' are non-fatal; resolve with
       // whatever we have. Anything else also resolves so the UI never hangs.
       console.warn('Speech recognition error:', e.error || e);
+      recognitionLastError = String(e?.error || '');
       if (recognitionResolve) {
         const r = recognitionResolve;
         recognitionResolve = null;
@@ -180,7 +196,7 @@ export async function startRecording() {
     state.mediaRecorder.start(250);
   } catch (err) {
     console.error('startRecording failed:', err);
-    el.aiReply.textContent = '❌ Couldn\'t start recording. Check mic permissions.';
+    el.aiReply.textContent = explainRecordingFailure(err);
     resetTalkButton();
     startInFlight = false;
     pendingStop = false;
@@ -210,7 +226,13 @@ export async function stopRecordingAndSend() {
     const transcript = await stopWebSpeech();
     if (!transcript) {
       resetTalkButton();
-      el.aiReply.textContent = 'I didn\'t catch that — try speaking a bit louder.';
+      if (recognitionLastError === 'not-allowed' || recognitionLastError === 'service-not-allowed') {
+        el.aiReply.textContent = 'Speech recognition is blocked by browser/site permissions. Allow microphone and speech input for this site, then try again.';
+      } else if (recognitionLastError === 'audio-capture') {
+        el.aiReply.textContent = 'No usable microphone input detected. Check mic access and iframe microphone permissions.';
+      } else {
+        el.aiReply.textContent = 'I didn\'t catch that — try speaking a bit louder.';
+      }
       return;
     }
     await runDialogTurn(null, transcript);

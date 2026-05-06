@@ -5,11 +5,26 @@ import { dbToLinear, computeAllFeatures } from './dsp.js';
 const STORAGE_KEY = 'sonic-fingerprint-lab-data';
 const STORAGE_VER = 2;
 
+function serializeCaptureImage(canvas) {
+  if (!canvas || typeof canvas.toDataURL !== 'function') return '';
+  // JPEG is much smaller than PNG for spectrogram snapshots, reducing
+  // localStorage quota pressure on browsers with tight per-origin limits.
+  try { return canvas.toDataURL('image/jpeg', 0.82); } catch { /* try next */ }
+  try { return canvas.toDataURL('image/webp', 0.82); } catch { /* try next */ }
+  try { return canvas.toDataURL('image/png'); } catch { /* fall through */ }
+  return '';
+}
+
+function isStorageBlockedError(err) {
+  const n = String(err?.name || '').toLowerCase();
+  return n === 'securityerror' || n === 'notallowederror' || n === 'invalidstateerror';
+}
+
 export function saveToLocalStorage() {
   try {
     const lib = state.library.map(item => ({
       word: item.word,
-      imgDataUrl: item.img.toDataURL('image/png'),
+      imgDataUrl: serializeCaptureImage(item.img),
       freq: Array.from(item.freq),
       magnitudes: item.magnitudes ? Array.from(item.magnitudes) : null,
       features: item.features || null,
@@ -27,7 +42,13 @@ export function saveToLocalStorage() {
     }));
   } catch (err) {
     console.error('Save error:', err);
-    if (err.name === 'QuotaExceededError') alert('Storage quota exceeded — try deleting some words.');
+    if (err?.name === 'QuotaExceededError') {
+      alert('Storage quota exceeded — try deleting some words.');
+      return;
+    }
+    if (isStorageBlockedError(err)) {
+      alert('Browser storage is blocked in this context, so words may not persist after refresh.');
+    }
   }
 }
 
@@ -103,7 +124,7 @@ export async function loadFromLocalStorage() {
     };
   } catch (err) {
     console.error('Load error:', err);
-    localStorage.removeItem(STORAGE_KEY);
+    try { localStorage.removeItem(STORAGE_KEY); } catch { /* storage may be blocked */ }
     return null;
   }
 }
