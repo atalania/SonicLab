@@ -2,6 +2,7 @@
 @import "partials/tokens.css";
 @import "partials/base.css";
 @import "partials/layout.css";
+@import "partials/scrollbar.css";
 @import "partials/header.css";
 @import "partials/stats.css";
 @import "partials/panel.css";

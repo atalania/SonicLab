@@ -1,6 +1,20 @@
 /* ─── LAYOUT ─────────────────────────────────────────── */
-#app {
+.app-scroll {
   height: 100%;
+  min-height: 0;
+  width: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (min-width: 601px) {
+  .app-scroll {
+    scrollbar-gutter: stable;
+  }
+}
+
+#app {
   min-height: 0;
   min-width: 0;
   width: 100%;
@@ -12,8 +26,6 @@
   align-items: center;
   gap: 0;
   overflow-x: hidden;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
 }
 
 canvas {
