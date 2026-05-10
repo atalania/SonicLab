@@ -1,0 +1,65 @@
+/* ─── LAB INSTRUCTION ────────────────────────────────── */
+.lab-instruction {
+  font-family: var(--font-mono);
+  font-size: .8rem;
+  color: var(--muted);
+  text-align: center;
+  margin-top: 22px;
+  letter-spacing: .08em;
+}
+
+.lab-instruction strong { color: var(--cyan); }
+
+.lab-steps {
+  list-style: none;
+  width: 100%;
+  max-width: 520px;
+  margin: 14px auto 0;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: .84rem;
+  line-height: 1.45;
+  color: var(--white);
+  text-align: left;
+}
+
+.lab-steps li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.lab-steps li:last-child { border-bottom: none; padding-bottom: 0; }
+.lab-steps li:first-child { padding-top: 0; }
+
+.lab-steps__n {
+  flex-shrink: 0;
+  width: 1.4rem;
+  height: 1.4rem;
+  margin-top: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: .7rem;
+  font-weight: 700;
+  color: var(--bg);
+  background: var(--cyan);
+  border-radius: 4px;
+}
+
+.lab-steps strong { color: var(--cyan); font-weight: 600; }
+
+.lab-steps-tip {
+  margin-top: 12px;
+  font-size: .78rem;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.4;
+  max-width: 520px;
+}
+.lab-steps-tip strong { color: var(--amber); font-weight: 600; }
+

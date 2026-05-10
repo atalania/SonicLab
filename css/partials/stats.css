@@ -1,0 +1,48 @@
+/* ─── STATS RIBBON ───────────────────────────────────── */
+#stats-bar {
+  width: 100%;
+  display: none;
+  gap: 12px;
+  margin: 24px 0 0;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.stat-chip {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 20px;
+  text-align: center;
+  min-width: 100px;
+  transition: border-color .3s;
+}
+
+.stat-chip:hover { border-color: var(--border-glow); }
+
+.stat-chip__label {
+  font-family: var(--font-mono);
+  font-size: .65rem;
+  color: var(--muted);
+  letter-spacing: .15em;
+  text-transform: uppercase;
+}
+
+.stat-chip__value {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--cyan);
+  margin-top: 4px;
+  line-height: 1;
+}
+
+.stat-chip--compact {
+  min-width: 86px;
+  padding: 8px 14px;
+}
+
+.stat-chip--compact .stat-chip__value {
+  font-size: 1.2rem;
+}
+

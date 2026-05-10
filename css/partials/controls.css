@@ -1,0 +1,12 @@
+/* ─── CONTROLS ───────────────────────────────────────── */
+.controls {
+  width: 100%;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  align-items: stretch;
+}
+
+.controls--sm { margin-top: 10px; }
+

@@ -1,0 +1,41 @@
+/* ─── AI FEEDBACK ────────────────────────────────────── */
+.ai-feedback {
+  width: 100%;
+  background: var(--surface);
+  border-left: 3px solid var(--green);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 16px 18px;
+  margin-top: 16px;
+  font-family: var(--font-mono);
+  font-size: .82rem;
+  color: var(--green);
+  line-height: 1.7;
+  position: relative;
+  overflow: hidden;
+  min-height: 56px;
+}
+
+.ai-feedback::before {
+  content: 'SYSTEM ›';
+  position: absolute;
+  top: 10px; right: 14px;
+  font-size: .6rem;
+  color: var(--muted);
+  letter-spacing: .1em;
+}
+
+.ai-feedback.loading::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0;
+  height: 2px;
+  background: var(--green);
+  animation: scanning 1.8s ease-in-out infinite;
+}
+
+@keyframes scanning {
+  0%   { width: 0; left: 0; }
+  50%  { width: 100%; left: 0; }
+  100% { width: 0; left: 100%; }
+}
+

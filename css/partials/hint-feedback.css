@@ -1,0 +1,49 @@
+/* ─── HINT / FEEDBACK ────────────────────────────────── */
+.hint-box {
+  width: 100%;
+  background: rgba(255,170,0,.07);
+  border: 1px dashed rgba(255,170,0,.35);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-top: 14px;
+  font-size: .87rem;
+  color: var(--amber);
+  line-height: 1.6;
+}
+
+.hint-box strong {
+  display: block;
+  margin-bottom: 6px;
+  font-family: var(--font-mono);
+  font-size: .7rem;
+  letter-spacing: .1em;
+}
+
+.feedback-box {
+  width: 100%;
+  text-align: center;
+  padding: 16px;
+  border-radius: var(--radius);
+  margin-top: 14px;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  min-height: 56px;
+  transition: all .3s;
+}
+
+.feedback-box.correct {
+  background: rgba(57,255,20,.08);
+  border: 1px solid rgba(57,255,20,.4);
+  color: var(--green);
+  box-shadow: 0 0 24px rgba(57,255,20,.12);
+}
+
+.feedback-box.incorrect {
+  background: rgba(255,45,120,.08);
+  border: 1px solid rgba(255,45,120,.4);
+  color: var(--pink);
+  box-shadow: 0 0 24px rgba(255,45,120,.12);
+}
+

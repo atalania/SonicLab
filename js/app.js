@@ -43,14 +43,31 @@ function switchToLab() {
   });
 }
 
-// ── Resize ───────────────────────────────────────────
+// ── Resize / visual viewport (mobile iframe, iOS URL bar, keyboard) ──
 
-window.addEventListener('resize', () => {
+let refitSpectraScheduled = false;
+function refitSpectraAndAxis() {
   fitCanvas(el.liveCanvas, liveCtx);
   fitCanvas(el.mysteryCanvas, mysteryCtx);
   if (el.challengeSection.style.display === 'flex') redrawMystery();
   updateFreqAxisLabels();
-});
+}
+
+function scheduleRefitSpectraAndAxis() {
+  if (refitSpectraScheduled) return;
+  refitSpectraScheduled = true;
+  requestAnimationFrame(() => {
+    refitSpectraScheduled = false;
+    refitSpectraAndAxis();
+  });
+}
+
+window.addEventListener('resize', scheduleRefitSpectraAndAxis);
+window.addEventListener('load', scheduleRefitSpectraAndAxis);
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', scheduleRefitSpectraAndAxis);
+  window.visualViewport.addEventListener('scroll', scheduleRefitSpectraAndAxis);
+}
 
 // ── Event Listeners ──────────────────────────────────
 

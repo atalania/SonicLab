@@ -1,0 +1,34 @@
+/* ─── PANEL ──────────────────────────────────────────── */
+.panel {
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-top: 20px;
+}
+
+.panel--flush { margin-top: 0; }
+
+.panel-title {
+  font-family: var(--font-mono);
+  font-size: .7rem;
+  color: var(--muted);
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-title::before {
+  content: '';
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: var(--glow-cyan);
+  flex-shrink: 0;
+}
+

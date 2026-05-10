@@ -9,7 +9,7 @@
     "AI-assisted feedback helps interpret the player’s results, point out meaningful differences in their sound data, and guide them toward a stronger understanding of how frequency patterns relate to vocal and acoustic characteristics."
   ],
   "tags": ["physics", "sound", "frequency", "audio", "ai", "speech"],
-  "embedHeight": "100vh",
+  "embedHeight": "760px",
   "featured": true,
   "version": "1.0.0",
   "thumbnail": "thumbnail.png"

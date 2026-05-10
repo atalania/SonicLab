@@ -1,0 +1,30 @@
+/* ─── Portal / iframe root (fill slot; avoid body scroll + vh inside nested iframe) ─ */
+html {
+  height: 100%;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--white);
+  background-image:
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(0,180,255,.07) 0%, transparent 60%),
+    repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(255,255,255,.018) 39px, rgba(255,255,255,.018) 40px),
+    repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(255,255,255,.018) 39px, rgba(255,255,255,.018) 40px);
+}
+

@@ -1,0 +1,80 @@
+/* ─── DIALOG PANEL ───────────────────────────────────── */
+.dialog-panel {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  margin-top: 16px;
+}
+
+.dialog-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dialog-meta { display: flex; gap: 16px; }
+
+.dialog-chip {
+  font-family: var(--font-mono);
+  font-size: .68rem;
+  color: var(--muted);
+  letter-spacing: .1em;
+}
+
+.dialog-chip b {
+  font-family: var(--font-display);
+  font-size: .88rem;
+  color: var(--white);
+  font-weight: 700;
+  display: block;
+  margin-top: 1px;
+}
+
+.transcript-area { display: flex; flex-direction: column; gap: 10px; }
+
+.transcript-line {
+  background: rgba(255,255,255,.025);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  padding: 10px 14px;
+}
+
+.transcript-line__label {
+  font-family: var(--font-mono);
+  font-size: .6rem;
+  color: var(--muted);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+
+.transcript-line__text {
+  font-size: .9rem;
+  color: var(--white);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+#replayTtsBtn {
+  margin-top: 8px;
+  padding: 6px 14px;
+  font-family: var(--font-mono);
+  font-size: .7rem;
+  letter-spacing: .08em;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color .15s, border-color .15s;
+}
+
+#replayTtsBtn:hover { color: var(--white); border-color: var(--border-glow); }
+

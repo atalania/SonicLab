@@ -1,0 +1,97 @@
+/* ─── RESPONSIVE ─────────────────────────────────────── */
+@media (max-width: 600px) {
+  #app {
+    padding-top: max(16px, env(safe-area-inset-top));
+    padding-right: max(14px, env(safe-area-inset-right));
+    padding-bottom: max(50px, env(safe-area-inset-bottom));
+    padding-left: max(14px, env(safe-area-inset-left));
+  }
+
+  .site-header {
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
+  }
+
+  .spectrum-wrap { height: 150px; }
+  .controls { flex-direction: column; }
+  .word-input, .btn { width: 100%; }
+  .btn-talk { min-width: unset; }
+  .dialog-toolbar { flex-direction: column; align-items: stretch; }
+  #options-container { grid-template-columns: 1fr; }
+  .word-input { font-size: 16px; }
+  .feature-grid { grid-template-columns: repeat(2, 1fr); }
+  .live-readout { grid-template-columns: repeat(2, 1fr); }
+
+  .btn {
+    min-height: 44px;
+  }
+
+  #stats-bar {
+    gap: 8px;
+  }
+
+  .stat-chip,
+  .stat-chip--compact {
+    min-width: 0;
+    flex: 1 1 calc(50% - 6px);
+    max-width: calc(50% - 4px);
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  #stats-bar .stat-chip:last-child:nth-child(odd) {
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
+
+  .modal-overlay {
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: max(16px, env(safe-area-inset-top));
+    padding-right: max(10px, env(safe-area-inset-right));
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    padding-left: max(10px, env(safe-area-inset-left));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .modal-card {
+    width: 100%;
+    max-width: min(480px, 100%);
+    max-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 32px);
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 32px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .modal-input {
+    font-size: 16px;
+  }
+
+  .modal-actions .btn {
+    min-height: 44px;
+  }
+
+  .analysis-overlay {
+    padding-top: max(16px, env(safe-area-inset-top));
+    padding-right: max(10px, env(safe-area-inset-right));
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+    padding-left: max(10px, env(safe-area-inset-left));
+  }
+
+  .analysis-close {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .tutorial-nudge {
+    padding-left: max(14px, env(safe-area-inset-left));
+    padding-right: max(14px, env(safe-area-inset-right));
+  }
+}
+
+@media (max-width: 380px) {
+  .spectrum-wrap { height: 120px; }
+  .logo-title { font-size: 1.4rem; }
+  .feature-grid { grid-template-columns: 1fr; }
+}

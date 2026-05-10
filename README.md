@@ -40,6 +40,8 @@ The current codebase is **v3.0** (modular vanilla JS): richer **live acoustic re
 - Standalone dev: events are logged to the console only
 - **Leaderboards & cloud JSON** (slug `sonic-lab`, `PORTAL_GAME_DATA_*` bridge, score paths the hub reads): see [LEADERBOARD_PORTAL.md](LEADERBOARD_PORTAL.md)
 
+On `/games/sonic-lab`, the portal sets the iframe **CSS height** from `embedHeight` in `data/game.json` (resolved with `resolveEmbedHeights` in the portal’s `src/lib/games/embed-height.ts`). The game is **not** full viewport: `100vh` / `100dvh` in your CSS refer to the **browser tab**, not the iframe slot, so this repo uses **`html, body { height: 100%; overflow: hidden }`** and scrolls inside **`#app`**, with spectrum canvases sized from their **containers** (`getBoundingClientRect` in `fitCanvas`). See **Portal / mobile iframe checklist** below.
+
 ---
 
 ## 🔬 STEM Concepts Explored
@@ -88,7 +90,29 @@ The current codebase is **v3.0** (modular vanilla JS): richer **live acoustic re
 - The repository **does not** ship a Flask app; logic previously in Python is **ported to the client** except for calls that must stay server-side (**OpenAI proxy** on the embedding host).
 
 **Deployment metadata**
-- `data/game.json` — `game-id`, title, copy, tags, embed height, version (used for Vite `base`: `/staticGames/<game-id>/`)
+- `data/game.json` — `game-id`, title, copy, tags, **`embedHeight`** (fixed minimum for the portal iframe, e.g. `760px`), version (used for Vite `base`: `/staticGames/<game-id>/`)
+
+---
+
+## Portal / mobile iframe checklist
+
+Use this when validating embeds on the LLNL STEM Games portal (`/games/sonic-lab`). Optional team doc: `MOBILE_EMBED_GAME_GUIDE.md` in the portal repository.
+
+- [ ] Viewport meta: `width=device-width`, `initial-scale=1`, `viewport-fit=cover` (see `index.html`)
+- [ ] Root layout: `html, body { height: 100%; width: 100%; }`, scroll inside `#app` — **no** `100vh` / `100dvh` as the sole height chain for the main game surface
+- [ ] Resize: `resize` + `load` + `visualViewport` `resize` / `scroll` → `fitCanvas` / axis labels from **container** geometry (`js/app.js`, `js/dom.js`)
+- [ ] Touch: controls ≥ 44×44px tap targets on narrow widths; `touch-action: manipulation` on `body` (`.btn-talk` keeps `touch-action: none` for hold-to-talk)
+- [ ] Safe area: mobile rules use `env(safe-area-inset-*)` on `#app`, modals, and tutorial (`css/styles.css` `@media (max-width: 600px)` / `520px`)
+- [ ] Test: `/games/sonic-lab` on a real phone (portrait + landscape) and **Open in new tab** from the toolbar
+- [ ] `embedHeight` in `data/game.json` matches the minimum playable height you tested (currently `760px`)
+
+**Quick verification**
+
+1. Run the portal, open `/games/sonic-lab`.
+2. DevTools → responsive mode → pick a phone height.
+3. Confirm **one** primary scroll (inside `#app`, not fighting the portal page).
+4. Confirm spectrum canvases use the visible iframe width without horizontal clip.
+5. Tap **open in new tab** — layout still works at small widths.
 
 ---
 

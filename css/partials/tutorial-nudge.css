@@ -1,0 +1,78 @@
+/* ─── HEADER + TUTORIAL NUDGE ───────────────────────── */
+.header-actions {
+  margin-top: 18px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-header-tut {
+  font-family: var(--font-mono);
+  font-size: .72rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  border-color: rgba(0, 229, 255, 0.35);
+  color: var(--cyan);
+}
+
+.btn-header-tut:hover:not(:disabled) {
+  border-color: var(--cyan);
+  box-shadow: var(--glow-cyan);
+}
+
+.tutorial-nudge {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto 20px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(0, 229, 255, 0.25);
+  background: linear-gradient(135deg, rgba(0, 229, 255, 0.06), rgba(57, 255, 20, 0.04));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px 16px;
+}
+
+.tutorial-nudge.hidden { display: none !important; }
+
+.tutorial-nudge__text {
+  flex: 1 1 220px;
+  font-size: .84rem;
+  color: var(--white);
+  line-height: 1.45;
+  margin: 0;
+  text-align: center;
+}
+
+.tutorial-nudge__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.btn-nudge {
+  font-size: .78rem;
+  padding: 8px 14px;
+}
+
+.challenge-toolbar {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.challenge-toolbar .btn-back {
+  width: auto;
+  max-width: none;
+  flex: 1 1 auto;
+  margin-bottom: 0;
+}
+
