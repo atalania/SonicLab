@@ -1366,19 +1366,6 @@ body {
   padding: 8px 14px;
 }
 
-.lab-tutorial-row {
-  width: 100%;
-  text-align: center;
-  margin: 14px 0 6px;
-}
-
-.btn-inline-tut {
-  font-size: .78rem;
-  max-width: 100%;
-  white-space: normal;
-  line-height: 1.35;
-}
-
 .challenge-toolbar {
   width: 100%;
   display: flex;

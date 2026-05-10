@@ -11,5 +11,6 @@
   "tags": ["physics", "sound", "frequency", "audio", "ai", "speech"],
   "embedHeight": "100vh",
   "featured": true,
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "thumbnail": "thumbnail.png"
 }

@@ -358,7 +358,6 @@ export function initTutorial() {
 
   const go = () => openTutorial(0);
   el.headerTutorialBtn?.addEventListener('click', go);
-  el.labTutorialBtn?.addEventListener('click', go);
   el.challengeTutorialBtn?.addEventListener('click', go);
 
   el.tutorialClose?.addEventListener('click', closeTutorial);

@@ -436,6 +436,28 @@ describe('dialog (integration)', () => {
     expect(calls).not.toContain('/api/ai/openai/whisper');
   });
 
+  it('offline local grader treats "hello" as off-topic, not a spectral answer', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('offline'));
+
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
+    const out = await dialog(null, {
+      difficulty: 1,
+      points: 3,
+      targetWord: 'X',
+      analysisText: '',
+      currentQuestion: 'What happens to the spectral pattern when you speak the same word louder?',
+      fft: null,
+      history: [],
+      transcript: 'hello',
+    });
+
+    expect(out.reply).toMatch(/greeting|small talk|quiz question/i);
+    expect(out.reply).not.toMatch(/Good instinct to compare the same word at different loudness/i);
+    expect(out.score).toBeLessThanOrEqual(0.15);
+    expect(out.usedLocalGrader).toBe(true);
+  });
+
   it('uses local grader when /api/ai/openai is unreachable (offline mode)', async () => {
     globalThis.fetch = vi.fn().mockRejectedValue(new Error('connect ECONNREFUSED'));
 

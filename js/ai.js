@@ -37,6 +37,7 @@ Rules for reply:
   Missing:
   Next step:
 - Be concise, specific, and educational.
+- If the student only greets you, chats, or says something unrelated to the question (for example "hello", "hi", "thanks", "ok"), do not pretend they answered. Briefly note it is off-topic, restate what the question is asking in one short phrase, and keep score in the 0.0–0.2 range.
 
 Scoring rubric:
 - 1.0 = correct, clear, and uses appropriate terms
@@ -415,36 +416,64 @@ function answerMatchesTheme(t, theme) {
   return re[theme].test(t);
 }
 
+/** Count signal-processing terms using word boundaries (avoids "low" inside "hello"). */
+function topicalHitCount(t) {
+  const tl = (t || '').toLowerCase();
+  const re = /\b(frequenc(?:y|ies)|spectr(?:um|al)|spectrogram|centroid|harmonics?|fundamental|formants?|resonance|flatness|rolloff|bandwidth|energy|tonal|nois(?:y|e)|vowels?|consonants?|voiced|unvoiced|fft|hertz|hz|pitch|amplitude|louder|loudness|volume|whisper|bins?|octave|waveforms?|wave|bands?|low|mid|high)\b/g;
+  const m = tl.match(re);
+  return m ? m.length : 0;
+}
+
+function normalizedChatText(transcript) {
+  return (transcript || '').trim().toLowerCase().replace(/[^a-z0-9\s']/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+/** Greetings / filler that should not be graded as a physics answer. */
+function isQuizSmallTalkOrGreeting(norm, topicalHits, wordCount) {
+  if (topicalHits >= 2) return false;
+  if (topicalHits >= 1 && wordCount >= 5) return false;
+  if (!norm) return true;
+  if (/^(hi|hey|hello|yo|sup|hiya|howdy|good\s+(morning|afternoon|evening)|greetings)\b/.test(norm)) return true;
+  if (/^(thanks|thank you|thx|cheers)\b/.test(norm)) return true;
+  if (/^(ok|okay|k|sure|cool|nice|wow|yep|yeah|nope|nah|no|yes)\b/.test(norm)) return true;
+  if (/^(uh+|um+|hmm+|hm+|er+|ah+)\b/.test(norm)) return true;
+  if (/^(test|testing|mic|microphone|one two|123)\b/.test(norm)) return true;
+  const words = norm.split(/\s+/).filter(Boolean);
+  if (words.length <= 2 && /^(hi|hey|hello|yo|ok|okay|thanks|thank you|yes|no)\b/.test(norm)) return true;
+  return false;
+}
+
 // Heuristic local grader when /api/ai/openai is unreachable or returns non-JSON.
 // Plain text only (the UI does not render Markdown). Hardened against keyword spam.
 function localQuizGrade(transcript, difficulty, currentQuestion) {
   const t = (transcript || '').toLowerCase();
+  const norm = normalizedChatText(transcript);
   const words = t.split(/\s+/).filter(Boolean);
   const wordCount = words.length;
   const ql = (currentQuestion || '').toLowerCase();
   const theme = questionTheme(ql);
+
+  const hits = topicalHitCount(t);
+  const relevant = answerMatchesTheme(t, theme);
+  const smallTalk = isQuizSmallTalkOrGreeting(norm, hits, wordCount);
+  const offTopic = smallTalk || (hits === 0 && !relevant && wordCount <= 3);
 
   let score = 0.26;
   if (wordCount >= 4) score += 0.06;
   if (wordCount >= 10) score += 0.06;
   if (wordCount >= 20) score += 0.04;
 
-  const TOPICAL = [
-    'frequency', 'pitch', 'amplitude', 'spectrum', 'spectral', 'centroid',
-    'harmonic', 'harmonics', 'fundamental', 'formant', 'formants', 'resonance',
-    'flatness', 'rolloff', 'bandwidth', 'energy', 'tonal', 'noise', 'noisy',
-    'vowel', 'consonant', 'voiced', 'unvoiced', 'fft', 'hertz', 'hz',
-    'low', 'mid', 'high', 'band', 'wave', 'waveform', 'octave',
-  ];
-  const hits = TOPICAL.filter(k => t.includes(k));
-  score += Math.min(0.12, hits.length * 0.04);
+  score += Math.min(0.12, hits * 0.04);
 
-  const relevant = answerMatchesTheme(t, theme);
   if (!relevant) score = Math.min(score, 0.40);
   else score += 0.06;
 
-  if (hits.length >= 5 && wordCount < 8) {
+  if (hits >= 5 && wordCount < 8) {
     score = Math.min(score, 0.52);
+  }
+
+  if (offTopic) {
+    score = Math.min(score, 0.12);
   }
 
   score = Math.max(0, Math.min(1, score));
@@ -453,29 +482,35 @@ function localQuizGrade(transcript, difficulty, currentQuestion) {
   const qShort = currentQuestion.length > 160 ? `${currentQuestion.slice(0, 157)}...` : currentQuestion;
 
   let coaching = '';
-  if (/louder|loudness|volume|amplitude|same word louder/i.test(ql)) {
+  if (offTopic) {
+    coaching = [
+      'That sounds like a greeting or small talk rather than an answer to the quiz question.',
+      '',
+      `Question: "${qShort}"`,
+      '',
+      'When you are ready, answer in one or two sentences using the live spectrum or ideas like amplitude, pitch, formants, or where energy sits across frequency.',
+    ].join('\n');
+  } else if (relevant && /louder|loudness|volume|amplitude|same word louder/i.test(ql)) {
     coaching = 'Good instinct to compare the same word at different loudness levels. Usually the first change is that the whole pattern gets brighter, while the overall band shape stays fairly similar.';
-  } else if (/pitch|higher|lower|fundamental|harmonic/i.test(ql)) {
+  } else if (relevant && /pitch|higher|lower|fundamental|harmonic/i.test(ql)) {
     coaching = 'Nice direction to think in terms of harmonics. When pitch shifts, harmonic peaks tend to move together while keeping roughly the same spacing pattern.';
-  } else if (/noise|tonal|flat|flatness|grainy|whisper/i.test(ql)) {
+  } else if (relevant && /noise|tonal|flat|flatness|grainy|whisper/i.test(ql)) {
     coaching = 'A helpful clue: noisy sounds spread energy across many bins, while vowel-like sounds usually form stronger, more focused bands.';
-  } else if (/fft|bin|resolution|discrete/i.test(ql)) {
+  } else if (relevant && /fft|bin|resolution|discrete/i.test(ql)) {
     coaching = 'Think of the FFT as a set of frequency buckets. Each moment is summarized into bins, so you see a sampled snapshot of the spectrum.';
-  } else {
+  } else if (relevant) {
     coaching = 'A solid way to answer this is to point to where the energy clusters and explain whether that pattern looks more vowel-like or noise-like.';
+  } else {
+    coaching = `Your answer does not quite connect to this question yet. Re-read: "${qShort}"`;
   }
 
-  const nudge = wordCount < 6
-    ? 'Try giving one concrete visual detail you would look for on the spectrogram.'
-    : 'For your next step, name one specific feature you would track on the frequency axis or in band brightness.';
+  const nudge = offTopic
+    ? ''
+    : wordCount < 6
+      ? 'Try giving one concrete visual detail you would look for on the spectrogram.'
+      : 'For your next step, name one specific feature you would track on the frequency axis or in band brightness.';
 
-  const reply = [
-    coaching,
-    '',
-    `Question: "${qShort}"`,
-    '',
-    nudge,
-  ].join('\n');
+  const reply = nudge ? [coaching, '', nudge].join('\n') : coaching;
 
   return {
     reply: reply.trim(),

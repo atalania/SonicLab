@@ -79,7 +79,6 @@ export const el = {
   tutorialNudgeStart:       $('tutorial-nudge-start'),
   tutorialNudgeDismiss:      $('tutorial-nudge-dismiss'),
   headerTutorialBtn:         $('header-tutorial-btn'),
-  labTutorialBtn:            $('lab-tutorial-btn'),
   challengeTutorialBtn:      $('challenge-tutorial-btn'),
   questionCoachToggle:       $('question-coach-toggle'),
   questionCoachPanel:        $('question-coach-panel'),

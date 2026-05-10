@@ -160,7 +160,6 @@ const IDS = [
   'tutorial-nudge-start',
   'tutorial-nudge-dismiss',
   'header-tutorial-btn',
-  'lab-tutorial-btn',
   'challenge-tutorial-btn',
   'question-coach',
   'question-coach-toggle',

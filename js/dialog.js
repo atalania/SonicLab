@@ -98,36 +98,52 @@ function startWebSpeech() {
 
   recognition.lang = 'en-US';
   recognition.continuous = true;
-  recognition.interimResults = false;
+  // Interim text is used only if the engine has not emitted a final chunk yet
+  // when the session ends (common right after recognition.stop()).
+  recognition.interimResults = true;
   recognition.maxAlternatives = 1;
 
   let finalTranscript = '';
+  let lastInterimTranscript = '';
   recognitionLastError = '';
+
+  function bestTranscriptSoFar() {
+    const fin = finalTranscript.trim();
+    if (fin) return fin;
+    return lastInterimTranscript.trim();
+  }
+
   const result = new Promise(resolve => {
     recognitionResolve = resolve;
     recognition.onresult = e => {
       for (let i = e.resultIndex; i < e.results.length; i++) {
+        const piece = e.results[i][0].transcript || '';
         if (e.results[i].isFinal) {
-          finalTranscript += e.results[i][0].transcript + ' ';
+          finalTranscript += `${piece} `;
+        } else {
+          lastInterimTranscript = piece;
         }
       }
     };
     recognition.onerror = e => {
-      // 'no-speech' / 'aborted' / 'audio-capture' are non-fatal; resolve with
-      // whatever we have. Anything else also resolves so the UI never hangs.
-      console.warn('Speech recognition error:', e.error || e);
-      recognitionLastError = String(e?.error || '');
+      const code = String(e?.error || '');
+      console.warn('Speech recognition error:', code || e);
+      recognitionLastError = code;
+      // stop() often raises 'aborted' before the final result is delivered; if we
+      // resolve here with "", the UI shows "didn't catch that" even though the
+      // user spoke. Let onend flush the transcript instead.
+      if (code.toLowerCase() === 'aborted') return;
       if (recognitionResolve) {
         const r = recognitionResolve;
         recognitionResolve = null;
-        r(finalTranscript.trim());
+        r(bestTranscriptSoFar());
       }
     };
     recognition.onend = () => {
       if (recognitionResolve) {
         const r = recognitionResolve;
         recognitionResolve = null;
-        r(finalTranscript.trim());
+        r(bestTranscriptSoFar());
       }
     };
   });
