@@ -38,6 +38,7 @@ The current codebase is **v3.0** (modular vanilla JS): richer **live acoustic re
 - When running **inside an iframe**, sends `postMessage` payloads (`type: 'ASSISTANT_GAME_EVENT'`) for **level start/complete**, **captures**, **correct/incorrect** challenge answers, **hints**, and **idle nudge** (2-minute idle timer)
 - `postMessage` target origin is locked to `VITE_PORTAL_ORIGIN` when set; otherwise it falls back to the iframe referrer origin (or same-origin as a final fallback)
 - Standalone dev: events are logged to the console only
+- **Leaderboards & cloud JSON** (slug `sonic-lab`, `PORTAL_GAME_DATA_*` bridge, score paths the hub reads): see [LEADERBOARD_PORTAL.md](LEADERBOARD_PORTAL.md)
 
 ---
 

@@ -37,6 +37,8 @@ export function saveToLocalStorage() {
       score: state.score,
       difficulty: state.difficulty,
       points: state.points,
+      lastOralScore: state.lastOralScore,
+      lastPointsDelta: state.lastPointsDelta,
       dialogHistory: state.dialogHistory.slice(-20),
       savedAt: new Date().toISOString()
     }));
@@ -120,6 +122,8 @@ export async function loadFromLocalStorage() {
       score: data.score || 0,
       difficulty: data.difficulty || 1,
       points: data.points || 0,
+      lastOralScore: data.lastOralScore ?? null,
+      lastPointsDelta: data.lastPointsDelta ?? null,
       dialogHistory: data.dialogHistory || []
     };
   } catch (err) {

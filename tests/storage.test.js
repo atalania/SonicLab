@@ -45,6 +45,8 @@ beforeEach(() => {
   state.score = 0;
   state.difficulty = 1;
   state.points = 0;
+  state.lastOralScore = null;
+  state.lastPointsDelta = null;
   state.dialogHistory.length = 0;
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
@@ -134,6 +136,8 @@ describe('saveToLocalStorage', () => {
     state.score = 4;
     state.difficulty = 2;
     state.points = 7;
+    state.lastOralScore = 0.72;
+    state.lastPointsDelta = 4;
     state.library.push({
       word: 'HI',
       img: { toDataURL: () => 'data:image/png;base64,AAAA' },
@@ -152,5 +156,7 @@ describe('saveToLocalStorage', () => {
     expect(data.score).toBe(4);
     expect(data.difficulty).toBe(2);
     expect(data.points).toBe(7);
+    expect(data.lastOralScore).toBe(0.72);
+    expect(data.lastPointsDelta).toBe(4);
   });
 });

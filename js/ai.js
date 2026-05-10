@@ -44,7 +44,7 @@ Scoring rubric:
 - 0.4 to 0.6 = partially correct or vague
 - 0.0 to 0.3 = incorrect, confused, or off-topic
 
-Difficulty:
+Difficulty (the app applies these from your score; include newDifficulty only as a hint):
 - Increase if score >= 0.75
 - Decrease if score <= 0.35
 - Otherwise keep the same
@@ -184,18 +184,41 @@ function analyzeFrequencySpectrum(freqValues, word, sampleRate = 44100, fftSize 
   };
 }
 
-// ── Points System ──
+// ── Points & difficulty (single rubric curve) ──
 
 const BASE_POINTS = { 1: 2, 2: 3, 3: 4, 4: 6, 5: 8 };
 
-function computePoints(score, difficulty) {
+/** Same thresholds as QUIZ_SYSTEM_PROMPT; authoritative in code. */
+export function difficultyFromRubricScore(score, difficulty) {
+  const s = Math.max(0, Math.min(1, score));
+  if (s >= 0.75) return Math.min(5, difficulty + 1);
+  if (s <= 0.35) return Math.max(1, difficulty - 1);
+  return difficulty;
+}
+
+/**
+ * Multiplier for base points, aligned with difficulty tiers (mastery from 0.75).
+ * Soft partial credit below 0.35; zero below 0.12.
+ */
+function scoreToPointMultiplier(score) {
+  const s = Math.max(0, Math.min(1, score));
+  if (s < 0.12) return 0;
+  if (s < 0.35) return 0.18 + 0.32 * ((s - 0.12) / (0.35 - 0.12));
+  if (s < 0.60) return 0.50 + 0.30 * ((s - 0.35) / 0.25);
+  if (s < 0.75) return 0.80 + 0.20 * ((s - 0.60) / 0.15);
+  return 1.0 + 0.25 * Math.min(1, (s - 0.75) / 0.25);
+}
+
+function computeBaseQuizPoints(score, difficulty) {
   const base = BASE_POINTS[difficulty] || 2;
-  let mult;
-  if (score < 0.35) mult = 0.0;
-  else if (score < 0.60) mult = 0.5;
-  else if (score < 0.80) mult = 1.0;
-  else mult = 1.25;
+  const mult = scoreToPointMultiplier(score);
   return Math.max(0, Math.min(10, Math.round(base * mult)));
+}
+
+function computeMcVoiceBonusPoints(score, difficulty, eligible) {
+  if (!eligible || score < 0.60) return 0;
+  const base = BASE_POINTS[difficulty] || 2;
+  return Math.max(1, Math.min(6, Math.round(base * 0.4)));
 }
 
 // ── Question Bank ──
@@ -373,17 +396,38 @@ Rules:
 
 // ── Dialog (quiz flow) ──
 
-// Heuristic local grader used when /api/ai/openai is unreachable or returns
-// non-JSON. Plain text only (the UI does not render Markdown).
+function questionTheme(ql) {
+  if (/louder|loudness|volume|\bamplitude\b|same word louder/i.test(ql)) return 'loudness';
+  if (/\bpitch\b|higher|lower|fundamental|harmonic/i.test(ql)) return 'pitch';
+  if (/noise|tonal|flatness|\bflat\b|grainy|whisper/i.test(ql)) return 'noise';
+  if (/fft|\bbin\b|resolution|discrete/i.test(ql)) return 'fft';
+  return 'general';
+}
+
+function answerMatchesTheme(t, theme) {
+  const re = {
+    loudness: /\b(amplitude|louder|loudness|volume|energy|brighter|gain|loud)\b/i,
+    pitch: /\b(pitch|fundamental|harmonics?\b|harmonic|hertz|\bhz\b|tone|timbre)\b/i,
+    noise: /\b(noise|noisy|tonal|flatness|\bflat\b|grainy|whisper|unvoiced)\b/i,
+    fft: /\b(fft|bins?\b|resolution|discrete|window|leakage)\b/i,
+    general: /\b(spectrum|spectral|frequency|energy|formants?\b|resonance|centroid|vowel|voiced|bandwidth|rolloff)\b/i,
+  };
+  return re[theme].test(t);
+}
+
+// Heuristic local grader when /api/ai/openai is unreachable or returns non-JSON.
+// Plain text only (the UI does not render Markdown). Hardened against keyword spam.
 function localQuizGrade(transcript, difficulty, currentQuestion) {
   const t = (transcript || '').toLowerCase();
   const words = t.split(/\s+/).filter(Boolean);
   const wordCount = words.length;
+  const ql = (currentQuestion || '').toLowerCase();
+  const theme = questionTheme(ql);
 
-  let score = 0.35;
-  if (wordCount >= 5) score += 0.1;
-  if (wordCount >= 12) score += 0.1;
-  if (wordCount >= 24) score += 0.05;
+  let score = 0.26;
+  if (wordCount >= 4) score += 0.06;
+  if (wordCount >= 10) score += 0.06;
+  if (wordCount >= 20) score += 0.04;
 
   const TOPICAL = [
     'frequency', 'pitch', 'amplitude', 'spectrum', 'spectral', 'centroid',
@@ -393,15 +437,20 @@ function localQuizGrade(transcript, difficulty, currentQuestion) {
     'low', 'mid', 'high', 'band', 'wave', 'waveform', 'octave',
   ];
   const hits = TOPICAL.filter(k => t.includes(k));
-  score += Math.min(0.3, hits.length * 0.07);
+  score += Math.min(0.12, hits.length * 0.04);
+
+  const relevant = answerMatchesTheme(t, theme);
+  if (!relevant) score = Math.min(score, 0.40);
+  else score += 0.06;
+
+  if (hits.length >= 5 && wordCount < 8) {
+    score = Math.min(score, 0.52);
+  }
+
   score = Math.max(0, Math.min(1, score));
 
-  const newDifficulty = score >= 0.75 ? Math.min(5, difficulty + 1)
-                       : score <= 0.35 ? Math.max(1, difficulty - 1)
-                       : difficulty;
-
+  const nd = difficultyFromRubricScore(score, difficulty);
   const qShort = currentQuestion.length > 160 ? `${currentQuestion.slice(0, 157)}...` : currentQuestion;
-  const ql = (currentQuestion || '').toLowerCase();
 
   let coaching = '';
   if (/louder|loudness|volume|amplitude|same word louder/i.test(ql)) {
@@ -431,8 +480,7 @@ function localQuizGrade(transcript, difficulty, currentQuestion) {
   return {
     reply: reply.trim(),
     score,
-    newDifficulty,
-    nextQuestion: getNextQuestion(newDifficulty),
+    nextQuestion: getNextQuestion(nd),
   };
 }
 
@@ -549,12 +597,13 @@ Set:
     }
 
     let payload = parseQuizPayload(raw);
+    const usedLocalIdk = !payload;
     if (!payload) {
       payload = localIdkPayload(difficulty);
     }
 
     const score = clampFloat(payload.score, 0.0, 1.0, 0.1);
-    const newDifficulty = clampInt(payload.newDifficulty, 1, 5, Math.max(1, difficulty - 1));
+    const newDifficulty = difficultyFromRubricScore(score, difficulty);
     const reply = truncate(payload.reply, 2000);
     const nextQuestion = truncate(payload.nextQuestion || getNextQuestion(newDifficulty), 500);
 
@@ -563,10 +612,13 @@ Set:
       reply,
       score,
       pointsEarned: 0,
+      mcVoiceBonus: 0,
+      pointsDelta: 0,
       pointsReason: 'Student said IDK -> teaching mode (0 pts)',
       totalPoints,
       difficulty: newDifficulty,
       nextQuestion,
+      usedLocalGrader: usedLocalIdk,
     };
   }
 
@@ -609,29 +661,36 @@ Evaluate the answer and respond with STRICT JSON.`,
   }
 
   let payload = parseQuizPayload(raw);
+  let usedLocalGrader = false;
   if (!payload) {
     if (raw && String(raw).trim().length > 0) {
       console.warn('dialog: quiz response was not valid JSON; first 280 chars:', String(raw).slice(0, 280));
     }
     payload = localQuizGrade(transcript, difficulty, currentQuestion);
+    usedLocalGrader = true;
   }
 
   const score = clampFloat(payload.score, 0.0, 1.0, 0.5);
-  const newDifficulty = clampInt(payload.newDifficulty, 1, 5, difficulty);
+  const newDifficulty = difficultyFromRubricScore(score, difficulty);
   const reply = truncate(payload.reply || 'Something went wrong parsing the tutor reply — please try again.', 2000);
   const nextQuestion = truncate(payload.nextQuestion || getNextQuestion(newDifficulty), 500);
 
-  const pointsEarned = computePoints(score, difficulty);
-  totalPoints += pointsEarned;
+  const pointsEarned = computeBaseQuizPoints(score, difficulty);
+  const mcVoiceBonus = computeMcVoiceBonusPoints(score, difficulty, !!context.eligibleMcVoiceBonus);
+  const pointsDelta = pointsEarned + mcVoiceBonus;
+  totalPoints += pointsDelta;
 
   return {
     transcript,
     reply,
     score,
     pointsEarned,
-    pointsReason: `diff=${difficulty} score=${score.toFixed(2)} -> +${pointsEarned}`,
+    mcVoiceBonus,
+    pointsDelta,
+    pointsReason: `diff=${difficulty} score=${score.toFixed(2)} base +${pointsEarned}${mcVoiceBonus ? ` combo +${mcVoiceBonus}` : ''}`,
     totalPoints,
     difficulty: newDifficulty,
     nextQuestion,
+    usedLocalGrader,
   };
 }

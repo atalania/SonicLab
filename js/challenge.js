@@ -3,7 +3,8 @@ import { el, mysteryCtx, fitCanvas } from './dom.js';
 import { generateEducationalNote } from './dsp.js';
 import { updateMeter, updateStats } from './ui.js';
 import { saveToLocalStorage } from './storage.js';
-import { fireChallengeStart, fireChallengeCorrect, fireChallengeIncorrect, fireHintViewed } from './portal.js';
+import { fireChallengeStart, fireChallengeCorrect, fireChallengeIncorrect } from './portal.js';
+import { refreshQuestionHelper } from './tutorial.js';
 
 const QUESTIONS = {
   1: ['What happens to the spectral pattern when you speak the same word louder?',
@@ -37,6 +38,7 @@ function shuffleInPlace(arr) {
 }
 
 export function startRound() {
+  state.eligibleMcVoiceBonus = false;
   el.feedback.textContent = '';
   el.feedback.className = 'feedback-box';
   el.nextBtn.classList.add('hidden');
@@ -72,6 +74,7 @@ export function startRound() {
   state.totalRounds++;
   fireChallengeStart(state.totalRounds);
   updateMeter(0);
+  refreshQuestionHelper();
 }
 
 function checkAnswer(word) {
@@ -80,18 +83,23 @@ function checkAnswer(word) {
 
   if (correct) {
     state.score++;
+    state.eligibleMcVoiceBonus = true;
     fireChallengeCorrect(word);
     el.feedback.textContent = '✓ CORRECT — Great pattern recognition!';
     el.feedback.className = 'feedback-box correct';
   } else {
-    fireChallengeIncorrect(word, state.currentTarget.word);
+    state.eligibleMcVoiceBonus = false;
+    const spectralHint = state.currentTarget.features
+      ? generateEducationalNote(state.currentTarget.features)
+      : state.currentTarget.analysis;
+    fireChallengeIncorrect(word, state.currentTarget.word, {
+      autoFeedbackShown: true,
+      spectralHint,
+    });
     el.feedback.textContent = `✕ INCORRECT — The answer was "${state.currentTarget.word}"`;
     el.feedback.className = 'feedback-box incorrect';
     el.challengeHint.classList.remove('hidden');
-    fireHintViewed();
-    el.hintText.textContent = state.currentTarget.features
-      ? generateEducationalNote(state.currentTarget.features)
-      : state.currentTarget.analysis;
+    el.hintText.textContent = spectralHint;
   }
 
   el.nextBtn.classList.remove('hidden');

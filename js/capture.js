@@ -103,7 +103,10 @@ async function fetchAnalysis(word, freq, features) {
 export async function captureWord() {
   if (captureInFlight) return;
   const word = el.wordInput.value.toUpperCase().trim();
-  if (!word) { alert('Please type the word you are saying!'); return; }
+  if (!word) {
+    alert('Type the word in the box first, then say it and tap Capture. (The moving spectrum only means the mic is hearing you.)');
+    return;
+  }
   if (state.library.some(item => item.word === word)) {
     alert('That word is already captured — use a different one.'); return;
   }

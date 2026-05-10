@@ -18,7 +18,18 @@
     <div class="logo-eyebrow">STEM Audio Lab · v3.0</div>
     <h1 class="logo-title">🧬 Sonic Fingerprint</h1>
     <p class="logo-sub">Explore how your voice creates unique spectral patterns</p>
+    <div class="header-actions">
+      <button type="button" class="btn btn-ghost btn-header-tut" id="header-tutorial-btn">How sound works</button>
+    </div>
   </header>
+
+  <div id="tutorial-nudge" class="tutorial-nudge hidden" role="region" aria-label="Getting started">
+    <p class="tutorial-nudge__text">New here? Take a short interactive tour of frequency, pitch, and the spectrogram.</p>
+    <div class="tutorial-nudge__actions">
+      <button type="button" class="btn btn-primary btn-nudge" id="tutorial-nudge-start">Start tour</button>
+      <button type="button" class="btn btn-ghost btn-nudge" id="tutorial-nudge-dismiss">Not now</button>
+    </div>
+  </div>
 
   <!-- STATS RIBBON -->
   <div id="stats-bar">
@@ -27,12 +38,20 @@
       <div class="stat-chip__value" id="stat-words">0</div>
     </div>
     <div class="stat-chip">
-      <div class="stat-chip__label">Score</div>
+      <div class="stat-chip__label">Matches</div>
       <div class="stat-chip__value" id="stat-score">0</div>
     </div>
     <div class="stat-chip">
       <div class="stat-chip__label">Level</div>
       <div class="stat-chip__value" id="stat-difficulty">1</div>
+    </div>
+    <div class="stat-chip stat-chip--compact">
+      <div class="stat-chip__label">Last oral</div>
+      <div class="stat-chip__value" id="stat-last-oral">—</div>
+    </div>
+    <div class="stat-chip stat-chip--compact">
+      <div class="stat-chip__label">Last +pts</div>
+      <div class="stat-chip__value" id="stat-last-delta">—</div>
     </div>
   </div>
 
@@ -40,13 +59,22 @@
   <div id="lab-section">
 
     <p class="lab-instruction">
-      Capture <strong>4 unique words</strong> to build your voice dataset
+      Capture <strong>4 unique words</strong> to build your voice dataset, then enter Challenge Mode.
+    </p>
+    <ol class="lab-steps" aria-label="How to save each word">
+      <li><span class="lab-steps__n">1</span> Type the word you will say in the box below.</li>
+      <li><span class="lab-steps__n">2</span> Say it clearly while the spectrum moves.</li>
+      <li><span class="lab-steps__n">3</span> Tap <strong>Capture</strong> — speaking alone does not save a word.</li>
+    </ol>
+    <p class="lab-steps-tip">Optional: after the mic is on, use <strong>Auto</strong> — speak one word, pause briefly, then type it in the popup to save.</p>
+    <p class="lab-tutorial-row">
+      <button type="button" class="btn btn-ghost btn-inline-tut" id="lab-tutorial-btn">Interactive primer: frequency, pitch &amp; spectrogram →</button>
     </p>
 
     <!-- Spectrum -->
     <div class="panel">
       <div class="panel-title">Live Spectrum</div>
-      <div class="spectrum-wrap">
+      <div class="spectrum-wrap" data-tutorial="live-spectrum">
         <canvas id="liveCanvas"></canvas>
         <div class="spectrum-badge" id="spectrum-badge">IDLE</div>
         <div class="rec-dot" id="recording-indicator">REC</div>
@@ -89,7 +117,7 @@
       <button class="btn btn-ghost" id="autoBtn" disabled>🤖 Auto: OFF</button>
     </div>
 
-    <div class="controls controls--sm">
+    <div class="controls controls--sm" data-tutorial="capture-controls">
       <input class="word-input" type="text" id="wordInput" placeholder="Type word (e.g. HELLO)" maxlength="20">
       <button class="btn btn-capture" id="captureBtn" disabled>📸 Capture</button>
     </div>
@@ -115,7 +143,8 @@
 
     <!-- Action buttons -->
     <div class="controls">
-      <button class="btn btn-challenge" id="goToChallengeBtn" disabled>
+      <button class="btn btn-challenge" id="goToChallengeBtn" disabled
+        title="Save 4 different words first (type each word, say it, then Capture — or use Auto).">
         🎯 Enter Challenge Mode →
       </button>
       <button class="btn btn-ghost" id="resetLabBtn">🔄 Reset</button>
@@ -126,7 +155,10 @@
   <!-- ═══ CHALLENGE SECTION ═════════════════════════ -->
   <div id="challenge-section">
 
-    <button class="btn btn-ghost btn-back" id="backToLabBtn">← Back to Lab</button>
+    <div class="challenge-toolbar">
+      <button class="btn btn-ghost btn-back" id="backToLabBtn">← Back to Lab</button>
+      <button type="button" class="btn btn-ghost" id="challenge-tutorial-btn">Concepts</button>
+    </div>
 
     <div class="challenge-head">
       <div class="challenge-title">🎭 Mystery Pattern</div>
@@ -150,10 +182,12 @@
         <div id="ai-meter-bar"></div>
       </div>
       <div class="meter-status" id="ai-match-text">Speak to compare your voice…</div>
+      <p class="meter-hint" id="meter-hint">This percentage compares your live spectrum to the hidden target — it is coaching only, not the same as voice-quiz points below.</p>
     </div>
 
     <!-- AI Dialog -->
-    <div class="dialog-panel">
+    <div class="dialog-panel" data-tutorial="dialog-panel">
+      <p class="combo-hint">After a <strong>correct</strong> mystery pick, a spoken answer scored about 0.6+ earns extra <strong>combo</strong> points on top of the base voice score.</p>
       <div class="dialog-toolbar">
         <div class="dialog-meta">
           <div class="dialog-chip">LEVEL <b id="diff">1</b></div>
@@ -176,6 +210,13 @@
           <div class="transcript-line__text" id="nextQ">Answer questions by voice to earn points 🎯</div>
         </div>
       </div>
+      <div class="question-coach" id="question-coach">
+        <button type="button" class="question-coach__toggle" id="question-coach-toggle" aria-expanded="false" aria-controls="question-coach-panel">💡 What do these terms mean?</button>
+        <div class="question-coach__panel" id="question-coach-panel" hidden>
+          <div id="question-coach-content" class="question-coach__content"></div>
+          <button type="button" class="btn btn-ghost question-coach__full" id="question-coach-open-tutorial">Open full interactive tutorial</button>
+        </div>
+      </div>
     </div>
 
     <div id="challenge-hint" class="hint-box hidden">
@@ -191,11 +232,29 @@
 
 </div>
 
+<!-- ─── INTERACTIVE TUTORIAL ───────────────────────── -->
+<div id="tutorial-overlay" class="tutorial-overlay hidden" role="dialog" aria-modal="false" aria-labelledby="tutorial-title">
+  <div class="tutorial-card">
+    <button type="button" class="tutorial-close" id="tutorial-close" aria-label="Close tutorial">×</button>
+    <div class="tutorial-card__meta" id="tutorial-step-meta">Step 1 of 8</div>
+    <h2 class="tutorial-card__title" id="tutorial-title">Title</h2>
+    <div class="tutorial-card__body tutorial-prose" id="tutorial-body"></div>
+    <div id="tutorial-try-block" class="tutorial-try hidden">
+      <div class="tutorial-try__label">Try it</div>
+      <p class="tutorial-try__text" id="tutorial-try"></p>
+    </div>
+    <div class="tutorial-card__nav">
+      <button type="button" class="btn btn-ghost" id="tutorial-prev">← Back</button>
+      <button type="button" class="btn btn-primary" id="tutorial-next">Next →</button>
+    </div>
+  </div>
+</div>
+
 <!-- ─── LABEL MODAL ────────────────────────────────── -->
 <div id="labelModal" class="modal-overlay">
   <div class="modal-card">
     <div class="modal-title">Pattern Captured!</div>
-    <div class="modal-sub">What word did you say? Label it to save.</div>
+    <div class="modal-sub">Type the word you spoke, then tap Save. (The spectrum moving only means the mic is on — you still confirm the word here.)</div>
     <input id="modalWordInput" class="modal-input" placeholder="Type word (e.g. HELLO)" maxlength="20">
     <div class="modal-actions">
       <button class="btn btn-capture" id="modalSaveBtn">💾 Save</button>

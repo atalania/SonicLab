@@ -8,6 +8,8 @@ beforeEach(() => {
   state.score = 0;
   state.difficulty = 1;
   state.points = 0;
+  state.lastOralScore = null;
+  state.lastPointsDelta = null;
   el.wordHint.textContent = '';
   el.wordHint.className = '';
   el.count.textContent = '0';
@@ -17,6 +19,8 @@ beforeEach(() => {
   el.goToChallengeBtn.style.boxShadow = '';
   el.statScore.textContent = '0';
   el.statDifficulty.textContent = '1';
+  el.statLastOral.textContent = '—';
+  el.statLastDelta.textContent = '—';
   el.pts.textContent = '0';
   el.aiPercent.textContent = '0';
   el.aiMeterBar.style.width = '0%';
@@ -44,14 +48,18 @@ describe('ui', () => {
     expect(el.wordHint.textContent).toMatch(/Dataset complete/i);
   });
 
-  it('updateStats copies score, difficulty, and points', () => {
+  it('updateStats copies score, difficulty, points, and last voice summary', () => {
     state.score = 12;
     state.difficulty = 4;
     state.points = 99;
+    state.lastOralScore = 0.815;
+    state.lastPointsDelta = 5;
     updateStats();
     expect(el.statScore.textContent).toBe('12');
     expect(el.statDifficulty.textContent).toBe('4');
     expect(el.pts.textContent).toBe('99');
+    expect(el.statLastOral.textContent).toBe('82%');
+    expect(el.statLastDelta.textContent).toBe('+5');
   });
 
   it('updateMeter updates label colors by match strength', () => {

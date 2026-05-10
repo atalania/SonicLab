@@ -41,7 +41,7 @@ describe('portal bridge (integration)', () => {
     expect(postMessage).toHaveBeenCalledTimes(1);
     const msg = postMessage.mock.calls[0][0];
     expect(msg.type).toBe('ASSISTANT_GAME_EVENT');
-    expect(msg.payload.gameId).toBe('sonic-fingerprint-lab');
+    expect(msg.payload.gameId).toBe('sonic-lab');
     expect(msg.payload.eventType).toBe('level_start');
     expect(msg.payload.levelId).toBe('lab');
   });
@@ -96,6 +96,15 @@ describe('portal bridge (integration)', () => {
     expect(msg.payload.playerAnswer).toBe('CAT');
     expect(msg.payload.correctAnswer).toBe('DOG');
     expect(msg.payload.mistakeCategory).toBe('spectral_confusion');
+  });
+
+  it('posts incorrect_submission with optional additionalContext', () => {
+    state.currentTarget = { word: 'DOG' };
+    state.totalRounds = 1;
+    fireChallengeIncorrect('CAT', 'DOG', { spectralHint: 'Centroid is high', autoFeedbackShown: true });
+    const msg = postMessage.mock.calls[0][0];
+    expect(msg.payload.additionalContext.spectralHint).toBe('Centroid is high');
+    expect(msg.payload.additionalContext.autoFeedbackShown).toBe(true);
   });
 
   it('increments hintCount across hint_request events', () => {
@@ -155,12 +164,16 @@ describe('initPortal', () => {
     });
   });
 
-  it('registers idle timer and fires idle nudge', () => {
+  it('registers idle timer and fires timeout event', () => {
     const addSpy = vi.spyOn(document, 'addEventListener');
     initPortal();
     expect(addSpy).toHaveBeenCalled();
     vi.advanceTimersByTime(120_000);
     expect(postMessage).toHaveBeenCalled();
+    const idleMsg = postMessage.mock.calls.find(
+      c => c[0]?.payload?.eventType === 'timeout',
+    );
+    expect(idleMsg).toBeTruthy();
     addSpy.mockRestore();
   });
 });

@@ -6,7 +6,8 @@
 
 import { state } from './state.js';
 
-const GAME_ID = 'sonic-fingerprint-lab';
+/** Must match `game-id` in data/game.json and the portal route `/games/<game-id>`. */
+const GAME_ID = 'sonic-lab';
 const IDLE_TIMEOUT_MS = 120_000;
 
 let problemStartTime = Date.now();
@@ -123,7 +124,7 @@ export function fireChallengeCorrect(playerWord) {
   });
 }
 
-export function fireChallengeIncorrect(playerWord, correctWord) {
+export function fireChallengeIncorrect(playerWord, correctWord, additionalContext) {
   sendToPortal({
     gameId: GAME_ID,
     levelId: currentLevel(),
@@ -134,6 +135,7 @@ export function fireChallengeIncorrect(playerWord, correctWord) {
     correctAnswer: String(correctWord),
     hintCount,
     timeSpentSeconds: elapsed(),
+    ...(additionalContext != null ? { additionalContext } : {}),
   });
 }
 
@@ -155,7 +157,7 @@ function onIdle() {
   sendToPortal({
     gameId: GAME_ID,
     levelId: currentLevel(),
-    eventType: 'idle_nudge',
+    eventType: 'timeout',
     targetConcept: 'spectral_analysis',
     hintCount,
     timeSpentSeconds: elapsed(),

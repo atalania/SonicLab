@@ -117,6 +117,9 @@ const IDS = [
   'stat-words',
   'stat-score',
   'stat-difficulty',
+  'stat-last-oral',
+  'stat-last-delta',
+  'meter-hint',
   'ai-percent',
   'ai-meter-bar',
   'ai-match-text',
@@ -144,6 +147,26 @@ const IDS = [
   'analysis-dominant-freqs',
   'analysis-educational',
   'analysis-ai-text',
+  'tutorial-overlay',
+  'tutorial-close',
+  'tutorial-step-meta',
+  'tutorial-title',
+  'tutorial-body',
+  'tutorial-try-block',
+  'tutorial-try',
+  'tutorial-prev',
+  'tutorial-next',
+  'tutorial-nudge',
+  'tutorial-nudge-start',
+  'tutorial-nudge-dismiss',
+  'header-tutorial-btn',
+  'lab-tutorial-btn',
+  'challenge-tutorial-btn',
+  'question-coach',
+  'question-coach-toggle',
+  'question-coach-panel',
+  'question-coach-content',
+  'question-coach-open-tutorial',
 ];
 
 function installDomFixture() {
@@ -174,7 +197,7 @@ function installDomFixture() {
     } else if (INPUT_IDS.has(id)) {
       el = document.createElement('input');
       el.type = 'text';
-    } else if (id.endsWith('Btn') || id === 'talkBtn') {
+    } else if (id.endsWith('Btn') || id === 'talkBtn' || id === 'question-coach-toggle') {
       el = document.createElement('button');
     } else {
       el = document.createElement('div');

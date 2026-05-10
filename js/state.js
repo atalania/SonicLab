@@ -17,6 +17,10 @@ export const state = {
   dialogHistory: [],
   difficulty: 1,
   points: 0,
+  /** After a correct mystery pick; next oral answer can earn combo bonus. */
+  eligibleMcVoiceBonus: false,
+  lastOralScore: null,
+  lastPointsDelta: null,
 
   recordingStream: null,
   mediaRecorder: null,

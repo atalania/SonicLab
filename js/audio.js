@@ -7,6 +7,8 @@ import { createPendingCapture } from './capture.js';
 import { compareLiveToTarget } from './challenge.js';
 
 let drawFrameCount = 0;
+/** Throttle on-screen hints when Auto Capture hears speech but rejects the burst. */
+let lastVadRejectHintAt = 0;
 
 function explainMicFailure(err) {
   const name = String(err?.name || '').toLowerCase();
@@ -52,7 +54,10 @@ export async function initAudio() {
     state.isMicActive   = true;
 
     const binHz = Math.round(state.audioCtx.sampleRate / FFT_SIZE);
-    showStatus(`✓ Microphone active — FFT size ${FFT_SIZE} (${binHz} Hz/bin) — ready to capture!`, 'success');
+    showStatus(
+      `✓ Mic on (${FFT_SIZE} FFT, ${binHz} Hz/bin). Type a word, say it, tap Capture — or turn on Auto, speak one word, pause, then label it.`,
+      'success'
+    );
     el.startBtn.disabled = true;
     el.startBtn.textContent = '✓ Mic Active';
     el.captureBtn.disabled = false;
@@ -203,10 +208,10 @@ function runVAD(energy) {
       : (1 - alpha) * state.autoCapture.baseline + alpha * energy;
   }
 
-  const threshold  = state.autoCapture.baseline + 12;
-  const startNeed  = 6;
-  const endNeed    = 10;
-  const minSpeech  = 18;
+  const threshold  = state.autoCapture.baseline + 8;
+  const startNeed  = 4;
+  const endNeed    = 8;
+  const minSpeech  = 12;
 
   if (!state.autoCapture.inSpeech) {
     if (energy > threshold) {
@@ -224,7 +229,7 @@ function runVAD(energy) {
     if (energy < threshold) {
       state.autoCapture.silenceFrames++;
       if (state.autoCapture.silenceFrames >= endNeed) {
-        const strong = state.autoCapture.peak > state.autoCapture.baseline + 18;
+        const strong = state.autoCapture.peak > state.autoCapture.baseline + 10;
         const long   = state.autoCapture.speechFrames >= minSpeech;
         if (strong && long) {
           createPendingCapture();
@@ -233,6 +238,15 @@ function runVAD(energy) {
           // Short / weak speech bursts also get a (smaller) cooldown so
           // trailing noise can't immediately re-trigger speech detection.
           state.autoCapture.cooldownUntil = Date.now() + 300;
+          const t = Date.now();
+          if (t - lastVadRejectHintAt > 2800) {
+            lastVadRejectHintAt = t;
+            if (!long) {
+              showStatus('Auto: keep the word going a bit longer (~½ second), then pause.', 'info');
+            } else if (!strong) {
+              showStatus('Auto: try a bit louder or closer to the mic, then pause after the word.', 'info');
+            }
+          }
         }
         state.autoCapture.inSpeech     = false;
         state.autoCapture.speechFrames = 0;

@@ -29,6 +29,14 @@ export function updateStats() {
   el.statScore.textContent = state.score;
   el.statDifficulty.textContent = state.difficulty;
   el.pts.textContent = state.points;
+  if (el.statLastOral) {
+    el.statLastOral.textContent =
+      state.lastOralScore != null ? `${Math.round(state.lastOralScore * 100)}%` : '—';
+  }
+  if (el.statLastDelta) {
+    el.statLastDelta.textContent =
+      state.lastPointsDelta != null ? `+${state.lastPointsDelta}` : '—';
+  }
 }
 
 export function updateMeter(pct) {

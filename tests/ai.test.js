@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { analyzeSound, dialog, getNextQuestion } from '../js/ai.js';
+import { analyzeSound, dialog, getNextQuestion, difficultyFromRubricScore } from '../js/ai.js';
 
 function mockOpenAIResponse(content) {
   return {
@@ -21,6 +21,18 @@ describe('getNextQuestion', () => {
     const q = getNextQuestion(1);
     expect(typeof q).toBe('string');
     expect(q.length).toBeGreaterThan(0);
+  });
+});
+
+describe('difficultyFromRubricScore', () => {
+  it('increases at 0.75+, decreases at <=0.35, holds otherwise', () => {
+    expect(difficultyFromRubricScore(0.9, 2)).toBe(3);
+    expect(difficultyFromRubricScore(0.75, 4)).toBe(5);
+    expect(difficultyFromRubricScore(0.74, 3)).toBe(3);
+    expect(difficultyFromRubricScore(0.36, 3)).toBe(3);
+    expect(difficultyFromRubricScore(0.35, 3)).toBe(2);
+    expect(difficultyFromRubricScore(0.34, 3)).toBe(2);
+    expect(difficultyFromRubricScore(0.1, 1)).toBe(1);
   });
 });
 
@@ -195,8 +207,66 @@ describe('dialog (integration)', () => {
 
     expect(out.transcript).toContain('Energy');
     expect(out.reply).toContain('Correct:');
-    expect(out.totalPoints).toBeGreaterThanOrEqual(10);
+    expect(out.difficulty).toBe(3);
+    expect(out.pointsDelta).toBe(out.pointsEarned + out.mcVoiceBonus);
+    expect(out.totalPoints).toBe(10 + out.pointsDelta);
     expect(out.nextQuestion).toBeTruthy();
+  });
+
+  it('derives level from score even when model returns inconsistent newDifficulty', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValueOnce(
+      mockOpenAIResponse(
+        JSON.stringify({
+          reply: 'Correct: Strong.\nMissing: None.\nNext step: Explore bins.',
+          score: 0.88,
+          newDifficulty: 1,
+          nextQuestion: 'Follow-up about FFT?',
+        }),
+      ),
+    );
+
+    const out = await dialog(null, {
+      difficulty: 2,
+      points: 0,
+      targetWord: 'X',
+      analysisText: '',
+      currentQuestion: 'Describe harmonics.',
+      fft: null,
+      history: [],
+      transcript: 'Harmonics are integer multiples of the fundamental frequency.',
+    });
+
+    expect(out.difficulty).toBe(3);
+    expect(out.usedLocalGrader).toBe(false);
+  });
+
+  it('adds combo bonus when eligibleMcVoiceBonus and spoken score is high enough', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValueOnce(
+      mockOpenAIResponse(
+        JSON.stringify({
+          reply: 'Correct: Clear.\nMissing: None.\nNext step: Done.',
+          score: 0.82,
+          newDifficulty: 2,
+          nextQuestion: 'Next?',
+        }),
+      ),
+    );
+
+    const out = await dialog(null, {
+      difficulty: 2,
+      points: 5,
+      targetWord: 'T',
+      analysisText: '',
+      currentQuestion: 'Q?',
+      fft: null,
+      history: [],
+      transcript: 'The spectral centroid shifts toward high frequencies when the sound is brighter.',
+      eligibleMcVoiceBonus: true,
+    });
+
+    expect(out.mcVoiceBonus).toBeGreaterThan(0);
+    expect(out.pointsDelta).toBe(out.pointsEarned + out.mcVoiceBonus);
+    expect(out.totalPoints).toBe(5 + out.pointsDelta);
   });
 
   it('enters teaching path when transcript is IDK', async () => {

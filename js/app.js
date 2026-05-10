@@ -8,6 +8,7 @@ import { startRound, redrawMystery } from './challenge.js';
 import { unlockAudioForiOS, startRecording, stopRecordingAndSend } from './dialog.js';
 import { loadFromLocalStorage, clearSavedData } from './storage.js';
 import { initPortal, fireLabStart } from './portal.js';
+import { initTutorial } from './tutorial.js';
 
 // ── Navigation ───────────────────────────────────────
 
@@ -67,8 +68,8 @@ el.autoBtn.addEventListener('click', () => {
 
   showStatus(
     state.autoCapture.enabled
-      ? 'Auto Capture ON — speak a word and I\'ll freeze it for labeling.'
-      : 'Auto Capture OFF — use manual Capture.',
+      ? 'Auto Capture ON — say one word clearly, pause briefly, then type it in the popup to save.'
+      : 'Auto Capture OFF — type your word, say it, then tap Capture.',
     'info'
   );
 
@@ -162,6 +163,8 @@ el.resetLabBtn.addEventListener('click', () => {
     state.score = data.score;
     state.difficulty = data.difficulty;
     state.points = data.points;
+    state.lastOralScore = data.lastOralScore ?? null;
+    state.lastPointsDelta = data.lastPointsDelta ?? null;
     state.dialogHistory = data.dialogHistory;
 
     // Suppress level_complete portal event for hydrated datasets — the level
@@ -176,5 +179,6 @@ el.resetLabBtn.addEventListener('click', () => {
     setTimeout(() => showStatus('Ready to capture more words or enter Challenge Mode!', 'info'), 3000);
   }
   initPortal();
+  initTutorial();
   console.log('🧬 Sonic Fingerprint Lab v3.0 — Modular architecture ready');
 })();

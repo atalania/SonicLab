@@ -3,6 +3,7 @@ import { state } from './state.js';
 import { el } from './dom.js';
 import { updateStats } from './ui.js';
 import { saveToLocalStorage } from './storage.js';
+import { refreshQuestionHelper } from './tutorial.js';
 
 // Hold-to-talk race control. Pointer-up can fire while startRecording is still
 // awaiting getUserMedia / Web Speech start; without this, the recorder ran
@@ -288,6 +289,7 @@ function buildDialogContext(extraTranscript) {
     analysisText: state.currentTarget?.analysis || '',
     difficulty: state.difficulty,
     points: state.points,
+    eligibleMcVoiceBonus: state.eligibleMcVoiceBonus,
     history: state.dialogHistory,
     currentQuestion: el.nextQ.textContent,
     transcript: extraTranscript || '',
@@ -301,11 +303,20 @@ async function runDialogTurn(blob, transcriptOverride) {
     const data = await callDialog(blob, ctx);
 
     el.studentTranscript.textContent = data.transcript || '(no transcript)';
-    el.aiReply.textContent = data.reply || '(no reply)';
+    let replyText = data.reply || '(no reply)';
+    if (data.usedLocalGrader) {
+      replyText += '\n\n— Offline: scored with a simple local checker until the tutor API is available again.';
+    }
+    el.aiReply.textContent = replyText;
     el.nextQ.textContent = data.nextQuestion || '—';
+    refreshQuestionHelper();
 
     state.difficulty = data.difficulty ?? state.difficulty;
     state.points     = data.totalPoints ?? state.points;
+    state.eligibleMcVoiceBonus = false;
+    state.lastOralScore = typeof data.score === 'number' ? data.score : state.lastOralScore;
+    state.lastPointsDelta = typeof data.pointsDelta === 'number' ? data.pointsDelta : null;
+
     el.diff.textContent = state.difficulty;
     el.pts.textContent  = state.points;
 
